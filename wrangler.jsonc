@@ -3,6 +3,7 @@
   "name": "cm1040-survey-app-final",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-08-28",
+  "preview_urls": false,
   "assets": { "not_found_handling": "single-page-application" },
   "workers_dev": true,
   "d1_databases": [
