@@ -25,7 +25,7 @@ No participant seed data is included in the repository. Local D1 state is stored
 4. Configure a custom Cloudflare hostname/route for the Worker, then run `npm run deploy`.
 5. In Cloudflare Zero Trust, create a self-hosted Access application for the hostname. Protect `/admin*` and `/api/admin/*` with an Allow policy containing only the owner’s email identity. Keep the public survey and `/api/survey/submit` outside that policy.
 
-`workers_dev` is disabled in the production configuration so the private admin API is not reachable through an unintended worker.dev bypass.
+The production Worker is available through its `workers.dev` target by default. For a custom hostname, add the hostname in Cloudflare and protect `/admin*` and `/api/admin/*` with Cloudflare Access before sharing the results area.
 
 ## Prototype asset capture
 

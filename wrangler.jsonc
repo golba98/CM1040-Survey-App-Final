@@ -1,21 +1,21 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "cm1040-prototype-feedback-survey",
+  "name": "cm1040-survey-app-final",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-08-28",
   "assets": { "not_found_handling": "single-page-application" },
-  "workers_dev": false,
+  "workers_dev": true,
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "cm1040-survey",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "4ec45d51-4313-4057-8a6e-08f1fa04edde",
       "migrations_dir": "migrations"
     }
   ],
   "env": {
     "staging": {
-      "name": "cm1040-prototype-feedback-survey-staging",
+      "name": "cm1040-survey-app-final-staging",
       "workers_dev": true
     },
     "production": {
