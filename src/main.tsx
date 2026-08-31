@@ -510,7 +510,7 @@ function App() {
               <p className="eyebrow">
                 {step.kind === "prototype" ? "Screen review" : step.title}
               </p>
-              <h1>{step.title}</h1>
+              <h1>{step.kind === "prototype" ? eras.find((era) => era.key === activeEra)?.label ?? step.title : step.title}</h1>
               {step.kind === "cross" && (
                 <p className="lead">
                   Now compare the designs as a whole and think about how a
