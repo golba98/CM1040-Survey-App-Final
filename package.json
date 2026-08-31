@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "capture:prototypes": "tsx scripts/capture-prototypes.ts",
     "deploy": "npm run build && wrangler deploy"
   },
@@ -23,6 +25,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "playwright-core": "^1.62.1",
+    "prettier": "3.9.6",
     "tsx": "latest",
     "typescript": "latest",
     "vite": "latest",

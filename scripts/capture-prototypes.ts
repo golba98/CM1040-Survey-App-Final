@@ -3,11 +3,8 @@ import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const sourceRoot =
-  "/home/k9-vortex/Development/1-JavaScript(Type)/33-Prototype Implementation";
-const targetRoot = fileURLToPath(
-  new URL("../public/prototypes/", import.meta.url),
-);
+const sourceRoot = "/home/k9-vortex/Development/1-JavaScript(Type)/33-Prototype Implementation";
+const targetRoot = fileURLToPath(new URL("../public/prototypes/", import.meta.url));
 const projects = [
   { folder: "1-Timeline-History-Demo", key: "timeline" },
   { folder: "2-Editorial-Story-Demo", key: "editorial" },
@@ -31,15 +28,7 @@ async function main() {
     const projectPort = port++;
     const server = spawn(
       "npm",
-      [
-        "run",
-        "dev",
-        "--",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        String(projectPort),
-      ],
+      ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(projectPort)],
       { cwd: `${sourceRoot}/${project.folder}`, stdio: "ignore" },
     );
     await sleep(1200);
@@ -74,9 +63,7 @@ async function main() {
 
 await Promise.all(
   projects.flatMap((p) =>
-    routes.map((r) =>
-      mkdir(`${targetRoot}${p.key}/${r.key}`, { recursive: true }),
-    ),
+    routes.map((r) => mkdir(`${targetRoot}${p.key}/${r.key}`, { recursive: true })),
   ),
 );
 await main();

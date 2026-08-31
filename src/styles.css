@@ -12,8 +12,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at 80% -10%, #182a36 0, transparent 35%), #0d1117;
+  background: radial-gradient(circle at 80% -10%, #182a36 0, transparent 35%), #0d1117;
 }
 button,
 input,
