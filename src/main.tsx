@@ -254,8 +254,9 @@ const CHROME = {
 /** Below this viewport width a 1440px desktop page scales past readability, so
  *  the preview starts on mobile instead. */
 const NARROW = 700;
-/** Floor on the preview scale: below this the prototype's text is not legible,
- *  so the stage pans sideways rather than shrinking further. */
+/** Floor on the *zoomed* preview scale: below this the prototype's text is not
+ *  legible, so the zoomed stage pans sideways rather than shrinking further.
+ *  Fitting the whole layout in is the default; see `PrototypeViewer`. */
 const MIN_SCALE = 0.42;
 
 function isMissing(q: Question, a?: Answer) {
@@ -282,11 +283,13 @@ function DeviceFrame({
   title,
   layout,
   scale,
+  panning,
 }: {
   src: string;
   title: string;
   layout: "desktop" | "mobile";
   scale: number;
+  panning: boolean;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const design = DESIGN[layout];
@@ -305,7 +308,7 @@ function DeviceFrame({
     doc.head.appendChild(style);
   };
   return (
-    <div className={`device ${layout}`}>
+    <div className={`device ${layout} ${panning ? "panning" : ""}`}>
       <div
         className="device-bezel"
         style={
@@ -362,12 +365,12 @@ function DeviceFrame({
 function PrototypeViewer({
   prototypeKey,
   onLayoutView,
-  seenMobile,
+  seenLayouts,
   embedded = false,
 }: {
   prototypeKey: string;
   onLayoutView: (layout: "desktop" | "mobile") => void;
-  seenMobile: boolean;
+  seenLayouts: string[];
   embedded?: boolean;
 }) {
   const active = prototypes.find((item) => item.key === prototypeKey)!;
@@ -377,8 +380,11 @@ function PrototypeViewer({
       ? "mobile"
       : "desktop",
   );
+  /** Only ever true for the desktop layout on a phone: see `scale` below. */
+  const [zoomed, setZoomed] = useState(false);
   const showLayout = (next: "desktop" | "mobile") => {
     setLayout(next);
+    setZoomed(false);
     onLayoutView(next);
   };
   useEffect(() => onLayoutView(layout), [onLayoutView, layout]);
@@ -395,10 +401,21 @@ function PrototypeViewer({
   // The bezel sits outside the screen, so it comes off the width the prototype
   // gets to use. `+1` on each side is the bezel's own hairline border.
   const screenWidth = stageWidth - 2 * (CHROME[layout].bezel + 1);
-  const scale =
-    screenWidth > 0
-      ? Math.max(MIN_SCALE, Math.min(1, screenWidth / design.w))
-      : 0;
+  /* Fitting the whole layout into the stage is the default everywhere. On any
+     viewport wide enough for `fitScale` to clear `MIN_SCALE` — every desktop and
+     tablet width — the two branches below are the same number, so this only
+     changes what a phone does with the 1440px desktop layout: it sees all of it
+     at once, and opts in to the pannable half-size view with Zoom. */
+  const fitScale = screenWidth > 0 ? Math.min(1, screenWidth / design.w) : 0;
+  const scale = zoomed ? Math.max(MIN_SCALE, fitScale) : fitScale;
+  const canZoom = fitScale > 0 && fitScale < MIN_SCALE;
+  const panning = design.w * scale > screenWidth;
+  const otherLayout = layout === "desktop" ? "mobile" : "desktop";
+  const hint = panning
+    ? "Half size · swipe the screen sideways to see the rest"
+    : canZoom
+      ? "The whole desktop layout at reduced size · tap Zoom to inspect the detail"
+      : "";
   useLayoutEffect(() => {
     const node = stageRef.current;
     if (!node) return;
@@ -420,25 +437,48 @@ function PrototypeViewer({
           <h2>{active.eraLabel}</h2>
           <p>{active.title}</p>
         </div>
-        <div
-          className="layout-toggle"
-          role="group"
-          aria-label="Choose prototype layout"
-        >
-          <button
-            className={layout === "desktop" ? "active" : ""}
-            onClick={() => showLayout("desktop")}
+        <div className="viewer-controls">
+          <div
+            className="layout-toggle"
+            role="group"
+            aria-label="Choose prototype layout"
           >
-            Desktop
-          </button>
-          <button
-            className={layout === "mobile" ? "active" : ""}
-            onClick={() => showLayout("mobile")}
-          >
-            Mobile
-          </button>
+            <button
+              className={layout === "desktop" ? "active" : ""}
+              onClick={() => showLayout("desktop")}
+            >
+              Desktop
+            </button>
+            <button
+              className={layout === "mobile" ? "active" : ""}
+              onClick={() => showLayout("mobile")}
+            >
+              Mobile
+            </button>
+          </div>
+          {canZoom && (
+            <button
+              className="zoom-toggle"
+              type="button"
+              aria-pressed={zoomed}
+              onClick={() => setZoomed((on) => !on)}
+            >
+              {zoomed ? "Fit" : "Zoom"}
+            </button>
+          )}
         </div>
       </div>
+      {(hint || !seenLayouts.includes(otherLayout)) && (
+        <p className="viewer-hint">
+          {hint}
+          {seenLayouts.includes(otherLayout) ? null : (
+            <em>
+              {hint ? " · " : ""}please also check the {otherLayout} layout
+              before continuing
+            </em>
+          )}
+        </p>
+      )}
       <figure className={`prototype-frame ${layout}`}>
         <div className="prototype-stage" ref={stageRef}>
           {scale > 0 && (
@@ -448,16 +488,14 @@ function PrototypeViewer({
               title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`}
               layout={layout}
               scale={scale}
+              panning={panning}
             />
           )}
         </div>
         <figcaption>
           {layout === "desktop" ? "Desktop layout" : "Mobile layout"} · scroll
           inside the screen to explore the page
-          {design.w * scale > screenWidth ? ", and swipe it sideways" : null}
-          {seenMobile ? null : (
-            <em> · please also check the mobile layout before continuing</em>
-          )}
+          {panning ? ", and swipe it sideways" : null}
         </figcaption>
       </figure>
     </section>
@@ -588,9 +626,7 @@ function DemoReview({
               onLayoutView={(layout) =>
                 onLayoutView(activeConcept.key, layout)
               }
-              seenMobile={(layoutsOpened[activeConcept.key] ?? []).includes(
-                "mobile",
-              )}
+              seenLayouts={layoutsOpened[activeConcept.key] ?? []}
               embedded
             />
           </div>
@@ -907,7 +943,7 @@ function App() {
                 key={step.prototypeKey}
                 prototypeKey={step.prototypeKey!}
                 onLayoutView={onLayoutView}
-                seenMobile={(layoutsOpened[step.key] ?? []).includes("mobile")}
+                seenLayouts={layoutsOpened[step.key] ?? []}
               />
             )}
             {step.kind === "comparison" && (

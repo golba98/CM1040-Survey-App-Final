@@ -221,6 +221,38 @@ button {
   font-size: 0.9rem;
   margin: 5px 0 0;
 }
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zoom-toggle {
+  margin: 0;
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 0.86rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+}
+.zoom-toggle[aria-pressed="true"] {
+  color: #0a0a0a;
+  background: var(--text);
+  border-color: var(--text);
+}
+/* Sits above the device frame rather than in the caption below it: on a phone
+   the caption is roughly 160px past the bottom of the screen, so a hint left
+   down there is never read. */
+.viewer-hint {
+  margin: 0 6px 14px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.viewer-hint em {
+  color: var(--text);
+  font-style: normal;
+}
 .layout-toggle {
   display: flex;
   gap: 3px;
@@ -257,20 +289,32 @@ button {
    survey page keeps the only visible one. */
 .prototype-stage {
   display: flex;
-  justify-content: center;
+  /* `justify-content: center` would centre the overflow too, putting the left
+     side of a zoomed mock-up at a negative scroll offset that can never be
+     reached. Aligning to the start and centring the child with `auto` margins
+     instead keeps the whole width pannable. */
+  justify-content: flex-start;
   width: 100%;
-  /* The desktop screen stops shrinking at MIN_SCALE, so on a narrow viewport it
-     pans sideways here rather than becoming unreadable. */
+  /* The zoomed desktop screen stops shrinking at MIN_SCALE, so on a narrow
+     viewport it pans sideways here rather than becoming unreadable. */
   overflow-x: auto;
 }
 .device {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-inline: auto;
   max-width: 100%;
   /* Room for the phone's side buttons, which sit outside the bezel and would
      otherwise make the stage scrollable by a few pixels. */
   padding-inline: 4px;
+}
+/* When the screen is wider than the stage the mock-up pans as one piece, so the
+   bezel has to be allowed to grow with it — capped at the stage width, the
+   monitor would no longer contain its own screen. */
+.device.panning,
+.device.panning .device-bezel {
+  max-width: none;
 }
 .device-bezel {
   position: relative;
@@ -392,12 +436,28 @@ button {
   min-width: 0;
 }
 .question legend {
+  /* A legend normally sits in a notch in the fieldset's top border, so a legend
+     that wraps — which nearly every question does on a phone — has its second
+     and third lines cut through by that border. Floating it makes the browser
+     render it as an ordinary block box inside the field, and the border stays
+     unbroken. */
+  float: left;
+  width: 100%;
   max-width: 100%;
   color: var(--text);
   font-weight: 500;
   font-size: 1rem;
   letter-spacing: -0.01em;
-  padding: 0 4px;
+  padding: 0;
+  margin-bottom: 2px;
+}
+.question legend ~ * {
+  clear: both;
+}
+.question::after {
+  content: "";
+  display: table;
+  clear: both;
 }
 .required {
   color: var(--danger);
@@ -789,8 +849,11 @@ select:focus-visible {
     align-items: start;
     flex-direction: column;
   }
-  .layout-toggle {
+  .viewer-controls {
     width: 100%;
+  }
+  .layout-toggle {
+    flex: 1;
   }
   .layout-toggle button {
     flex: 1;
@@ -831,9 +894,15 @@ select:focus-visible {
   .demo-dialog-header h2 {
     font-size: 1.05rem;
   }
+  /* All three fit a 360px screen once a label may wrap, so no tab — including
+     the active one — can end up hidden off the side with no cue that it is
+     there. */
   .concept-tabs {
-    overflow-x: auto;
-    grid-template-columns: repeat(3, minmax(145px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+    font-size: 0.78rem;
+  }
+  .concept-tabs button {
+    padding: 8px 6px;
   }
   .prototype-frame {
     padding: 18px 12px 16px;
@@ -865,7 +934,7 @@ select:focus-visible {
     gap: 4px;
   }
   .rating-option {
-    font-size: 0.6rem;
+    font-size: 0.72rem;
   }
   .rating-number {
     padding: 9px 0;
@@ -882,6 +951,7 @@ select:focus-visible {
   }
   /* Comfortable touch targets. */
   .layout-toggle button,
+  .zoom-toggle,
   .choice-options label,
   .ranking-options select,
   .primary,
