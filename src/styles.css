@@ -219,6 +219,9 @@ button {
 .concept-tabs button { flex: 1; border: 1px solid #cbd5da; border-radius: 4px; padding: 9px; background: #fff; color: #30404b; font-weight: 700; }
 .concept-tabs button.active { background: #256b73; color: #fff; border-color: #256b73; }
 .concept-tabs small { display: block; font-weight: 400; opacity: .8; }
+.era-tabs { display: flex; gap: 6px; margin: -6px 8px 14px; overflow-x: auto; }
+.era-tabs button { flex: 1; min-width: 120px; border: 1px solid #53636e; border-radius: 4px; padding: 8px; background: transparent; color: #aebbc6; font-weight: 650; }
+.era-tabs button.active { border-color: #56a9b2; background: #17373c; color: #fff; }
 .questions {
   display: grid;
   gap: 18px;

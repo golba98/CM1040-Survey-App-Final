@@ -3,18 +3,23 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Visual data prototype for South Africa's local and mobile internet development, 2013 to 2019.">
-    <title>2013–2019 | Visual Data Demo</title>
+    <meta name="color-scheme" content="dark light">
+    <meta name="description" content="Visual data telemetry prototype for South Africa's internet history, 2013 to 2019.">
+    <title>Dataset 02 · 2013–2019 | Empirical Telecom Portal</title>
     <script>
       (function() {
-        const theme = localStorage.getItem("theme");
-        if (theme === "dark" || theme === "light") {
-          document.documentElement.setAttribute("data-theme", theme);
+        const stored = localStorage.getItem("theme");
+        if (stored === "dark" || stored === "light") {
+          document.documentElement.setAttribute("data-theme", stored);
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
-    <script type="module" crossorigin src="./assets/main-UVeYyAEV.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/main-D0LaRA0g.css">
+    <script type="module" crossorigin src="./assets/main-BNtV6zhF.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-Bj0pVyuS.css">
   </head>
   <body data-page="local">
     <div id="app"></div>

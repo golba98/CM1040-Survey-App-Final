@@ -224,12 +224,13 @@ function currentRanking(
   return values.includes(item) && values[index] !== item;
 }
 
-function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
+function PrototypeViewer({ prototypeKey, onSelectionChange }: { prototypeKey: string; onSelectionChange: (conceptKey: string, eraKey: string) => void }) {
   const p = prototypes.find((item) => item.key === prototypeKey)!;
   const [conceptKey, setConceptKey] = useState(p.conceptKey);
+  const [eraKey, setEraKey] = useState(p.eraKey);
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
-  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === p.eraKey)!;
-  const page = p.eraKey === "bandwidth" ? "index.html" : p.eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
+  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === eraKey)!;
+  const page = eraKey === "bandwidth" ? "index.html" : eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
   const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
   return (
     <section
@@ -241,7 +242,7 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
           <p className="eyebrow">Prototype screen</p>
           <h2>{active.conceptName}</h2>
           <p>
-            {p.eraLabel} · {p.title}
+            {active.eraLabel} · {active.title}
           </p>
         </div>
         <div
@@ -264,7 +265,10 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
         </div>
       </div>
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
-        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}</button>)}
+        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onSelectionChange(concept.key, eraKey); }}>{concept.name}</button>)}
+      </div>
+      <div className="era-tabs" role="tablist" aria-label={`${active.conceptName} chapters`}>
+        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => { setEraKey(era.key); onSelectionChange(conceptKey, era.key); }}>{era.label}</button>)}
       </div>
       <figure className={`prototype-frame ${layout}`}>
         <iframe key={`${prototypeUrl}-${layout}`} className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
@@ -284,6 +288,7 @@ function App() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
   const [activeConcept, setActiveConcept] = useState("timeline");
+  const [activeEra, setActiveEra] = useState("bandwidth");
   useEffect(() => {
     const saved = localStorage.getItem(draftKey);
     if (saved) {
@@ -319,7 +324,10 @@ function App() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [answers, submitted]);
   const step = steps[stepIndex];
-  useEffect(() => { setActiveConcept("timeline"); }, [stepIndex]);
+  useEffect(() => {
+    setActiveConcept("timeline");
+    setActiveEra(step.prototypeKey?.replace("timeline-", "") ?? "bandwidth");
+  }, [step.prototypeKey]);
   const setAnswer = (id: string, answer: Answer) => {
     setAnswers((previous) => ({ ...previous, [id]: answer }));
     setErrors((previous) => {
@@ -333,7 +341,7 @@ function App() {
       step.kind === "participant"
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
-          ? questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`)
+          ? questions.filter((q) => q.prototypeKey === `${activeConcept}-${activeEra}`)
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"
@@ -503,7 +511,14 @@ function App() {
               )}
             </div>
             {step.kind === "prototype" && (
-              <PrototypeViewer prototypeKey={step.prototypeKey!} onConceptChange={setActiveConcept} />
+              <PrototypeViewer
+                key={step.prototypeKey}
+                prototypeKey={step.prototypeKey!}
+                onSelectionChange={(conceptKey, eraKey) => {
+                  setActiveConcept(conceptKey);
+                  setActiveEra(eraKey);
+                }}
+              />
             )}
             <div className="questions">
               {visibleQuestions().map((q) => (
