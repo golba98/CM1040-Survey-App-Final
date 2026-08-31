@@ -1,4 +1,5 @@
 import { questionMap } from "../src/shared/survey";
+import { packAnswers } from "./answers";
 import { clean, json, type Env } from "./http";
 import { validateSubmission } from "./validation";
 
@@ -69,38 +70,19 @@ export async function submitSurvey(request: Request, env: Env) {
   const answers = payload.answers.filter((answer) =>
     questionMap.has(answer.questionId),
   );
-  const statements = [
-    env.DB.prepare(
-      "INSERT INTO survey_responses (response_uuid, participant_name, device_type, website_experience, started_at, submitted_at, status) VALUES (?, ?, ?, ?, ?, datetime('now'), 'submitted')",
-    ).bind(
-      payload.responseUuid,
-      clean(payload.participant?.name, 80) || null,
-      payload.participant?.deviceType,
-      Number(payload.participant?.websiteExperience),
-      clean(payload.startedAt, 80) || new Date().toISOString(),
-    ),
-    ...answers.map((answer) =>
-      env.DB.prepare(
-        "INSERT INTO survey_answers (response_uuid, question_id, prototype_key, layout_type, answer_type, numeric_answer, text_answer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))",
-      ).bind(
-        payload.responseUuid,
-        answer.questionId,
-        clean(answer.prototypeKey, 80) || null,
-        clean(answer.layoutType, 30) || "general",
-        answer.answerType === "rating"
-          ? "rating"
-          : answer.answerType === "ranking"
-            ? "ranking"
-            : answer.numericAnswer != null
-              ? "rating"
-              : "text",
-        Number.isInteger(answer.numericAnswer) ? answer.numericAnswer : null,
-        clean(answer.textAnswer),
-      ),
-    ),
-  ];
   try {
-    await env.DB.batch(statements);
+    await env.DB.prepare(
+      "INSERT INTO survey_responses (response_uuid, participant_name, device_type, website_experience, started_at, submitted_at, status, answers_json) VALUES (?, ?, ?, ?, ?, datetime('now'), 'submitted', ?)",
+    )
+      .bind(
+        payload.responseUuid,
+        clean(payload.participant?.name, 80) || null,
+        payload.participant?.deviceType,
+        Number(payload.participant?.websiteExperience),
+        clean(payload.startedAt, 80) || new Date().toISOString(),
+        JSON.stringify(packAnswers(answers)),
+      )
+      .run();
   } catch (error) {
     console.error("survey submission failed", error);
     return json(

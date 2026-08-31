@@ -40,6 +40,6 @@ npx wrangler d1 migrations apply cm1040-survey --local
 npm test
 ```
 
-The submission endpoint validates the same question catalog used by the client, writes the response and answers atomically, and treats a repeated response UUID as an idempotent success.
+The submission endpoint validates the same question catalog used by the client, stores each completed survey as one `survey_responses` row with its answers in validated JSON, and treats a repeated response UUID as an idempotent success.
 
 # CM1040-Survey-App-Final

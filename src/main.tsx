@@ -1165,10 +1165,14 @@ function Admin() {
               {selected.response?.device_type}
             </p>
             <div className="answer-list">
-              {selected.answers?.map((a: any) => (
-                <article key={a.id}>
-                  <span>{a.question_id}</span>
-                  <strong>{a.numeric_answer ?? a.text_answer}</strong>
+              {selected.answers?.map((answer: any) => (
+                <article key={answer.questionId}>
+                  <span>{answer.questionText}</span>
+                  <strong>
+                    {Array.isArray(answer.value)
+                      ? answer.value.join(" → ")
+                      : answer.value}
+                  </strong>
                 </article>
               ))}
             </div>

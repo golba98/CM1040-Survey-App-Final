@@ -1,38 +1,49 @@
 import { questionMap } from "../src/shared/survey";
+import {
+  exportQuestions,
+  parseStoredAnswers,
+  type StoredAnswer,
+} from "./answers";
 import { json, type Env } from "./http";
 
-const exportHeaders = [
+const metadataHeaders = [
   "response_id",
   "timestamp",
   "participant_name",
   "device",
-  "prototype",
-  "layout",
-  "question_id",
-  "question_text",
-  "answer_type",
-  "numeric_answer",
-  "text_answer",
+  "website_experience",
+];
+const exportHeaders = [
+  ...metadataHeaders,
+  ...exportQuestions.map((question) => question.id),
 ];
 
+function exportValue(value: unknown) {
+  return Array.isArray(value) ? JSON.stringify(value) : value;
+}
+
 function escapeCsv(value: unknown) {
-  const text = String(value ?? "").replaceAll('"', '""');
+  const text = String(exportValue(value) ?? "").replaceAll('"', '""');
   return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
 async function exportResponses(url: URL, env: Env) {
-  const rows = await env.DB.prepare(
-    "SELECT r.response_uuid AS response_id, r.submitted_at AS timestamp, r.participant_name, r.device_type AS device, a.prototype_key, a.layout_type, a.question_id, a.answer_type, a.numeric_answer, a.text_answer FROM survey_responses r JOIN survey_answers a ON a.response_uuid=r.response_uuid WHERE r.status='submitted' ORDER BY r.submitted_at, a.id",
+  const result = await env.DB.prepare(
+    "SELECT response_uuid, submitted_at, participant_name, device_type, website_experience, answers_json FROM survey_responses WHERE status='submitted' ORDER BY submitted_at",
   ).all<Record<string, unknown>>();
-  const enriched: Array<Record<string, unknown>> = rows.results.map((row) => ({
-    ...row,
-    question_text:
-      questionMap.get(String(row.question_id))?.text ?? row.question_id,
+  const rows: Array<Record<string, unknown>> = result.results.map((row) => ({
+    response_id: row.response_uuid,
+    timestamp: row.submitted_at,
+    participant_name: row.participant_name,
+    device: row.device_type,
+    website_experience: row.website_experience,
+    ...parseStoredAnswers(row.answers_json),
   }));
-  if (url.searchParams.get("format") === "json") return json(enriched);
+
+  if (url.searchParams.get("format") === "json") return json(rows);
   const csv = [
     exportHeaders,
-    ...enriched.map((row) =>
+    ...rows.map((row) =>
       exportHeaders.map((header) => `"${escapeCsv(row[header])}"`),
     ),
   ]
@@ -47,6 +58,16 @@ async function exportResponses(url: URL, env: Env) {
   });
 }
 
+function displayAnswer(questionId: string, answer: StoredAnswer) {
+  const question = questionMap.get(questionId);
+  return {
+    questionId,
+    questionText: question?.text ?? questionId,
+    answerType: question?.type ?? typeof answer,
+    value: answer,
+  };
+}
+
 export async function handleAdminRequest(request: Request, env: Env) {
   const url = new URL(request.url);
   if (url.pathname === "/api/admin/summary") {
@@ -55,13 +76,13 @@ export async function handleAdminRequest(request: Request, env: Env) {
         "SELECT COUNT(*) AS total FROM survey_responses WHERE status='submitted'",
       ).first<{ total: number }>(),
       env.DB.prepare(
-        "SELECT question_id, ROUND(AVG(numeric_answer), 2) AS average, COUNT(*) AS count FROM survey_answers WHERE numeric_answer IS NOT NULL GROUP BY question_id",
+        "SELECT answer.key AS question_id, ROUND(AVG(CAST(answer.value AS REAL)), 2) AS average, COUNT(*) AS count FROM survey_responses AS response JOIN json_each(response.answers_json) AS answer WHERE response.status='submitted' AND answer.type IN ('integer', 'real') GROUP BY answer.key",
       ).all(),
       env.DB.prepare(
-        "SELECT json_extract(text_answer, '$[0]') AS option, COUNT(*) AS count FROM survey_answers WHERE question_id = 'concept_ranking' AND json_valid(text_answer) GROUP BY option ORDER BY count DESC, option",
+        "SELECT json_extract(answers_json, '$.concept_ranking[0]') AS option, COUNT(*) AS count FROM survey_responses WHERE status='submitted' AND json_extract(answers_json, '$.concept_ranking[0]') IS NOT NULL GROUP BY option ORDER BY count DESC, option",
       ).all(),
       env.DB.prepare(
-        "SELECT question_id, text_answer AS option, COUNT(*) AS count FROM survey_answers WHERE question_id IN ('preferred_at_glance', 'preferred_first_time_use', 'preferred_visual_design', 'preferred_navigation', 'preferred_readability', 'preferred_responsive_design') GROUP BY question_id, text_answer ORDER BY question_id, count DESC, option",
+        "SELECT answer.key AS question_id, answer.value AS option, COUNT(*) AS count FROM survey_responses AS response JOIN json_each(response.answers_json) AS answer WHERE response.status='submitted' AND answer.key IN ('preferred_at_glance', 'preferred_first_time_use', 'preferred_visual_design', 'preferred_navigation', 'preferred_readability', 'preferred_responsive_design') GROUP BY answer.key, answer.value ORDER BY answer.key, count DESC, answer.value",
       ).all(),
     ]);
     return json({
@@ -87,28 +108,35 @@ export async function handleAdminRequest(request: Request, env: Env) {
   if (url.pathname.startsWith("/api/admin/responses/")) {
     const responseUuid = url.pathname.split("/").pop();
     const response = await env.DB.prepare(
-      "SELECT * FROM survey_responses WHERE response_uuid = ? AND status='submitted'",
+      "SELECT response_uuid, participant_name, device_type, website_experience, started_at, submitted_at, status, answers_json FROM survey_responses WHERE response_uuid = ? AND status='submitted'",
     )
       .bind(responseUuid)
-      .first();
+      .first<Record<string, unknown>>();
     if (!response) return json({ error: "Response not found" }, 404);
-    const answers = await env.DB.prepare(
-      "SELECT * FROM survey_answers WHERE response_uuid = ? ORDER BY id",
-    )
-      .bind(responseUuid)
-      .all();
-    return json({ response, answers: answers.results });
+    const answers = Object.entries(parseStoredAnswers(response.answers_json)).map(
+      ([questionId, answer]) => displayAnswer(questionId, answer),
+    );
+    const { answers_json: _answersJson, ...metadata } = response;
+    return json({ response: metadata, answers });
   }
   if (url.pathname === "/api/admin/comments") {
     const questionId = url.searchParams.get("questionId");
+    if (questionId && !questionMap.has(questionId))
+      return json({ error: "Question not found" }, 404);
     const statement = questionId
       ? env.DB.prepare(
-          "SELECT response_uuid, prototype_key, text_answer, created_at FROM survey_answers WHERE question_id = ? AND text_answer IS NOT NULL AND text_answer != '' ORDER BY created_at DESC",
+          "SELECT response.response_uuid, answer.key AS question_id, answer.value AS text_answer, response.submitted_at AS created_at FROM survey_responses AS response JOIN json_each(response.answers_json) AS answer WHERE response.status='submitted' AND answer.key = ? AND answer.type = 'text' AND answer.value != '' ORDER BY response.submitted_at DESC",
         ).bind(questionId)
       : env.DB.prepare(
-          "SELECT response_uuid, question_id, prototype_key, text_answer, created_at FROM survey_answers WHERE text_answer IS NOT NULL AND text_answer != '' ORDER BY created_at DESC",
+          "SELECT response.response_uuid, answer.key AS question_id, answer.value AS text_answer, response.submitted_at AS created_at FROM survey_responses AS response JOIN json_each(response.answers_json) AS answer WHERE response.status='submitted' AND answer.type = 'text' AND answer.value != '' ORDER BY response.submitted_at DESC",
         );
-    return json((await statement.all()).results);
+    const result = await statement.all<Record<string, unknown>>();
+    return json(
+      result.results.map((row) => ({
+        ...row,
+        prototype_key: questionMap.get(String(row.question_id))?.prototypeKey,
+      })),
+    );
   }
   if (url.pathname === "/api/admin/export") return exportResponses(url, env);
   return json({ error: "Not found" }, 404);
