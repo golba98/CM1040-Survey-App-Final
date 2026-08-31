@@ -40,11 +40,25 @@ export async function submitSurvey(request: Request, env: Env) {
       422,
     );
 
-  const existing = await env.DB.prepare(
-    "SELECT response_uuid FROM survey_responses WHERE response_uuid = ? AND status = 'submitted'",
-  )
-    .bind(payload.responseUuid)
-    .first();
+  let existing: unknown;
+  try {
+    existing = await env.DB.prepare(
+      "SELECT response_uuid FROM survey_responses WHERE response_uuid = ? AND status = 'submitted'",
+    )
+      .bind(payload.responseUuid)
+      .first();
+  } catch (error) {
+    // Without this the participant sees the raw HTML error page as
+    // "Unexpected token '<'" instead of a message they can act on.
+    console.error("duplicate check failed", error);
+    return json(
+      {
+        error:
+          "We couldn't submit your feedback. Your answers have been kept. Please try again.",
+      },
+      500,
+    );
+  }
   if (existing)
     return json({
       ok: true,

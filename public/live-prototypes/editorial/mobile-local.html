@@ -8,14 +8,15 @@
     <title>Chapter 02 · 2013–2019 | The Telecom Chronicle</title>
     <script>
       (function() {
-        const stored = localStorage.getItem("theme");
-        if (stored === "dark" || stored === "light") {
-          document.documentElement.setAttribute("data-theme", stored);
-        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
-          document.documentElement.setAttribute("data-theme", "light");
-        } else {
-          document.documentElement.setAttribute("data-theme", "dark");
+        // Dark by default; the participant's own choice, once made, wins.
+        // The prototype's runtime re-resolves the theme from localStorage after
+        // load, so seed the stored value rather than only setting the attribute.
+        let stored = localStorage.getItem("theme");
+        if (stored !== "dark" && stored !== "light") {
+          stored = "dark";
+          try { localStorage.setItem("theme", stored); } catch (e) {}
         }
+        document.documentElement.setAttribute("data-theme", stored);
       })();
     </script>
     <script type="module" crossorigin src="./assets/main-CAO3LtAE.js"></script>

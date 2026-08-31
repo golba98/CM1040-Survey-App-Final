@@ -104,12 +104,15 @@ export function validateSubmission(payload: IncomingPayload) {
       errors[question.id] = "Please keep this response under 4,000 characters.";
   }
   for (const question of questions) {
+    // Skip conditionals whose trigger was not chosen, rather than naming each
+    // one here as more get added.
     if (
-      !question.required ||
-      question.id === "participant_name" ||
-      question.id === "text_too_small_details"
+      question.showWhen &&
+      answers.find((item) => item.questionId === question.showWhen?.questionId)
+        ?.textAnswer !== question.showWhen.equals
     )
       continue;
+    if (!question.required || question.id === "participant_name") continue;
     const answer = answers.find((item) => item.questionId === question.id);
     if (
       !answer ||
