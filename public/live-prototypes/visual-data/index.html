@@ -3,18 +3,24 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
     <meta name="description" content="Visual data prototype for South Africa's internet history, 2006 to 2012.">
     <title>2006–2012 | Visual Data Demo</title>
     <script>
       (function() {
-        const theme = localStorage.getItem("theme");
-        if (theme === "dark" || theme === "light") {
-          document.documentElement.setAttribute("data-theme", theme);
+        // Dark by default; the participant's own choice, once made, wins.
+        // The prototype's runtime re-resolves the theme from localStorage after
+        // load, so seed the stored value rather than only setting the attribute.
+        let stored = localStorage.getItem("theme");
+        if (stored !== "dark" && stored !== "light") {
+          stored = "dark";
+          try { localStorage.setItem("theme", stored); } catch (e) {}
         }
+        document.documentElement.setAttribute("data-theme", stored);
       })();
     </script>
     <script type="module" crossorigin src="./assets/main-UVeYyAEV.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/main-D0LaRA0g.css">
+    <link rel="stylesheet" crossorigin href="./assets/main-DVPfiYrp.css">
   </head>
   <body data-page="bandwidth">
     <div id="app"></div>
