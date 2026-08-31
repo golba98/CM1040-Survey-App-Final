@@ -49,7 +49,7 @@ export const screenQuestions = (prototypeKey: string, conceptKey: string, eraLab
   ] : [
     { ...choice(`${prototypeKey}_data_scan`, "Do the indicators, map/chart, and event records make the information easier to understand?", ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
   ]),
-].map((question) => conceptKey === "timeline" ? question : { ...question, required: false, stronglyEncouraged: true });
+];
 
 export const crossConceptQuestions: Question[] = [
   rating("layout_glance", "How easy is the website to understand at a glance?"),

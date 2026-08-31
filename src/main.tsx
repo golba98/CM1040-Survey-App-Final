@@ -281,7 +281,7 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
         </div>
       </div>
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
-        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}{concept.key !== "timeline" && <small>Optional</small>}</button>)}
+        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}</button>)}
       </div>
       <div className="era-tabs" role="tablist" aria-label="Optional era views">
         {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => setEraKey(era.key)}>{era.label} <small>Optional</small></button>)}
