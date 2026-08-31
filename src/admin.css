@@ -169,35 +169,6 @@ th {
     text-align: center;
   }
 }
-.caption-actions {
-  display: inline-flex;
-  gap: 14px;
-  align-items: center;
-}
-.prototype-frame figcaption > button:disabled,
-.caption-actions button:disabled {
-  color: #586773;
-  cursor: not-allowed;
-  text-decoration: none;
-}
-.lightbox-nav {
-  position: fixed;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 1px solid #657380;
-  color: #fff;
-  background: #202a33;
-  border-radius: 50%;
-  width: 42px;
-  height: 42px;
-  font-size: 1.3rem;
-}
-.lightbox-nav.left {
-  left: 20px;
-}
-.lightbox-nav.right {
-  right: 20px;
-}
 .prototype-frame {
   max-height: min(70vh, 720px);
   overflow: auto;
@@ -206,21 +177,4 @@ th {
   height: auto;
   max-height: none;
   object-fit: initial;
-}
-.lightbox {
-  display: block;
-  overflow: auto;
-  padding: 56px 18px 24px;
-  text-align: center;
-}
-.lightbox img {
-  display: inline-block;
-  max-width: none;
-  max-height: none;
-  width: auto;
-  height: auto;
-  vertical-align: top;
-}
-.lightbox-close {
-  z-index: 2;
 }

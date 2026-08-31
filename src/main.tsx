@@ -232,22 +232,10 @@ function currentRanking(
 function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
   const p = prototypes.find((item) => item.key === prototypeKey)!;
   const [conceptKey, setConceptKey] = useState(p.conceptKey);
-  const [eraKey, setEraKey] = useState(p.eraKey);
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
-  const [open, setOpen] = useState(false);
-  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === eraKey)!;
-  const page = eraKey === "bandwidth" ? "index.html" : eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
+  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === p.eraKey)!;
+  const page = p.eraKey === "bandwidth" ? "index.html" : p.eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
   const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-      if (event.key === "ArrowLeft") setLayout("desktop");
-      if (event.key === "ArrowRight") setLayout("mobile");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
   return (
     <section
       className="prototype-viewer"
@@ -283,72 +271,9 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
         {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}</button>)}
       </div>
-      <div className="era-tabs" role="tablist" aria-label="Optional era views">
-        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => setEraKey(era.key)}>{era.label} <small>Optional</small></button>)}
-      </div>
       <figure className={`prototype-frame ${layout}`}>
-        <iframe className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
-        <figcaption>
-          <button
-            onClick={() => setLayout("desktop")}
-            disabled={layout === "desktop"}
-            aria-label="Previous layout"
-          >
-            ← Previous
-          </button>
-          <span>
-            {layout === "desktop" ? "Desktop layout" : "Mobile layout"}
-          </span>
-          <span className="caption-actions">
-            <button onClick={() => setOpen(true)}>Enlarge image</button>
-            <button
-              onClick={() => setLayout("mobile")}
-              disabled={layout === "mobile"}
-              aria-label="Next layout"
-            >
-              Next →
-            </button>
-          </span>
-        </figcaption>
+        <iframe key={`${prototypeUrl}-${layout}`} className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
       </figure>
-      {open && (
-        <div
-          className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Enlarged prototype image"
-          onClick={() => setOpen(false)}
-        >
-          <button
-            className="lightbox-close"
-            onClick={() => setOpen(false)}
-            aria-label="Close enlarged image"
-          >
-            ×
-          </button>
-          <button
-            className="lightbox-nav left"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("desktop");
-            }}
-            aria-label="Previous layout"
-          >
-            ←
-          </button>
-          <iframe className="prototype-live enlarged" title={`${active.conceptName} enlarged`} src={prototypeUrl} onClick={(e) => e.stopPropagation()} />
-          <button
-            className="lightbox-nav right"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("mobile");
-            }}
-            aria-label="Next layout"
-          >
-            →
-          </button>
-        </div>
-      )}
     </section>
   );
 }

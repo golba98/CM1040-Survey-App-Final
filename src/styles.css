@@ -212,59 +212,13 @@ button {
   object-position: top center;
   background: #090c10;
 }
-.prototype-live { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border: 0; background: #fff; }
-.prototype-frame.mobile .prototype-live { width: min(100%, 390px); aspect-ratio: 16 / 9; margin: 0 auto; }
+.prototype-live { display: block; width: min(100%, 1280px); aspect-ratio: 16 / 9; height: auto; margin: 0 auto; border: 0; background: #fff; }
+.prototype-frame.mobile { max-width: 430px; max-height: none; margin-inline: auto; }
+.prototype-frame.mobile .prototype-live { width: min(100%, 390px); aspect-ratio: 390 / 844; margin: 0 auto; }
 .concept-tabs { display: flex; gap: 6px; margin: 0 8px 14px; }
 .concept-tabs button { flex: 1; border: 1px solid #cbd5da; border-radius: 4px; padding: 9px; background: #fff; color: #30404b; font-weight: 700; }
 .concept-tabs button.active { background: #256b73; color: #fff; border-color: #256b73; }
 .concept-tabs small { display: block; font-weight: 400; opacity: .8; }
-.era-tabs { display: flex; gap: 6px; margin: 0 8px 14px; overflow-x: auto; }
-.era-tabs button { flex: 1; min-width: 120px; border: 1px solid #cbd5da; border-radius: 4px; padding: 8px; background: #fff; color: #30404b; }
-.era-tabs button.active { border-color: #256b73; color: #256b73; font-weight: 700; }
-.prototype-frame.mobile {
-  max-width: 430px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.prototype-frame figcaption {
-  display: flex;
-  justify-content: space-between;
-  color: #aebbc6;
-  font-size: 0.82rem;
-  padding: 11px 12px;
-}
-.prototype-frame figcaption button {
-  color: #f47a58;
-  background: none;
-  border: 0;
-  text-decoration: underline;
-}
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.88);
-  display: grid;
-  place-items: center;
-  padding: 30px;
-}
-.lightbox img {
-  max-width: 95vw;
-  max-height: 92vh;
-  object-fit: contain;
-}
-.lightbox-close {
-  position: fixed;
-  top: 18px;
-  right: 24px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid #657380;
-  color: #fff;
-  background: #202a33;
-  border-radius: 50%;
-  font-size: 1.6rem;
-}
 .questions {
   display: grid;
   gap: 18px;
