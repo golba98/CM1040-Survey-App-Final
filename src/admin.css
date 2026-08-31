@@ -42,7 +42,7 @@
 }
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 30px;
 }
@@ -61,17 +61,22 @@
 }
 .stat-card strong {
   display: block;
-  font-size: 1.9rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
   font-weight: 600;
   letter-spacing: -0.03em;
   margin-top: 10px;
   color: var(--text);
 }
+.stat-card:first-child strong {
+  font-size: 1.9rem;
+}
 .stat-card small {
+  display: block;
   color: var(--muted-2);
   font-size: 0.72rem;
   font-weight: 400;
-  margin-left: 4px;
+  margin: 6px 0 0;
 }
 .admin-panel,
 .detail-panel {

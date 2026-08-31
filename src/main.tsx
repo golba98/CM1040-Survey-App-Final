@@ -10,9 +10,10 @@ import {
 import { createRoot } from "react-dom/client";
 import {
   concepts,
+  comparisonQuestions,
   consentStatement,
-  crossConceptQuestions,
   eras,
+  finalBuildQuestions,
   globalQuestions,
   layoutQuestionId,
   layoutTrackingId,
@@ -31,38 +32,22 @@ type Answers = Record<string, Answer>;
 type Step = {
   key: string;
   title: string;
-  kind: "welcome" | "participant" | "prototype" | "cross" | "final";
+  kind: "welcome" | "participant" | "prototype" | "comparison" | "final";
   prototypeKey?: string;
 };
 const draftKey = "cm1040-survey:draft:v2";
-/** Stated completion time on the welcome step. Measured against the real
- *  question set: 77 questions asked, 49 required (39 of them a single click) —
- *  roughly 14 minutes answering only what is required and about 30 filling in
- *  every optional comment too. Recount before changing this. */
-const MINUTES = "15–20";
+/** Stated completion time on the welcome step. The current instrument has 53
+ *  visible prompts when every optional chapter is opened, with 35 required.
+ *  Most of the comparison prompts are a single click. Recount before changing. */
+const MINUTES = "10–15";
 const participantIds = [
   "participant_consent",
   "participant_name",
   "participant_device",
   "website_experience",
 ];
-const finalIds = [
-  "concept_ranking",
-  "concept_ranking_reason",
-  "overall_visual_design",
-  "overall_usability",
-  "overall_navigation",
-  "overall_readability",
-  "overall_mobile_design",
-  "liked_most",
-  "liked_least",
-  "add_or_remove",
-  "most_important_improvement",
-  "final_comments",
-];
-const crossIds = crossConceptQuestions
-  .map((q) => q.id)
-  .filter((id) => !finalIds.includes(id));
+const comparisonIds = comparisonQuestions.map((question) => question.id);
+const finalIds = finalBuildQuestions.map((question) => question.id);
 
 function makeSteps(): Step[] {
   return [
@@ -74,8 +59,8 @@ function makeSteps(): Step[] {
       kind: "prototype" as const,
       prototypeKey: `${concept.key}-${primaryEra.key}`,
     })),
-    { key: "cross", title: "Overall experience", kind: "cross" },
-    { key: "final", title: "Final thoughts", kind: "final" },
+    { key: "comparison", title: "Compare the demos", kind: "comparison" },
+    { key: "final", title: "Shape the final website", kind: "final" },
   ];
 }
 
@@ -179,9 +164,17 @@ function QuestionField({
         <div className="ranking-options">
           {q.options?.map((option, index) => (
             <label key={option}>
-              {index + 1}.{" "}
+              <span className="ranking-position">
+                {index === 0 ? "1st — Favourite" : index === 1 ? "2nd" : "3rd"}
+              </span>
               <select
-                aria-label={`Rank ${index + 1}`}
+                aria-label={
+                  index === 0
+                    ? "First choice — favourite"
+                    : index === 1
+                      ? "Second choice"
+                      : "Third choice"
+                }
                 value={
                   answer?.textAnswer
                     ? (JSON.parse(answer.textAnswer)[index] ?? "")
@@ -195,7 +188,7 @@ function QuestionField({
                   setAnswer({ textAnswer: JSON.stringify(current) });
                 }}
               >
-                <option value="">Choose a concept</option>
+                <option value="">Choose a demo</option>
                 {q.options?.map((item) => (
                   <option
                     key={item}
@@ -370,10 +363,12 @@ function PrototypeViewer({
   prototypeKey,
   onLayoutView,
   seenMobile,
+  embedded = false,
 }: {
   prototypeKey: string;
   onLayoutView: (layout: "desktop" | "mobile") => void;
   seenMobile: boolean;
+  embedded?: boolean;
 }) {
   const active = prototypes.find((item) => item.key === prototypeKey)!;
   const { conceptKey, eraKey } = active;
@@ -416,7 +411,7 @@ function PrototypeViewer({
   }, [layout]);
   return (
     <section
-      className="prototype-viewer"
+      className={`prototype-viewer ${embedded ? "embedded" : ""}`}
       aria-label={`${active.conceptName}, ${active.eraLabel} prototype`}
     >
       <div className="viewer-header">
@@ -469,6 +464,142 @@ function PrototypeViewer({
   );
 }
 
+function DemoReview({
+  onLayoutView,
+  layoutsOpened,
+}: {
+  onLayoutView: (
+    conceptKey: string,
+    layout: "desktop" | "mobile",
+  ) => void;
+  layoutsOpened: Record<string, string[]>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [activeConceptKey, setActiveConceptKey] = useState<string | null>(null);
+
+  const openDemo = (conceptKey: string) => {
+    setActiveConceptKey(conceptKey);
+    requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      if (dialog && !dialog.open) dialog.showModal();
+    });
+  };
+
+  const closeDemo = () => dialogRef.current?.close();
+
+  useEffect(() => {
+    if (!activeConceptKey) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeConceptKey]);
+
+  const activeConcept = concepts.find(
+    (concept) => concept.key === activeConceptKey,
+  );
+
+  return (
+    <section className="demo-review" aria-labelledby="demo-review-heading">
+      <div className="demo-review-heading">
+        <div>
+          <p className="eyebrow">Need another look?</p>
+          <h2 id="demo-review-heading">Review any demo without going back</h2>
+        </div>
+        <p>
+          Your answers stay in place while you compare the live desktop and
+          mobile designs.
+        </p>
+      </div>
+      <div className="demo-review-grid">
+        {concepts.map((concept) => {
+          const preview = prototypes.find(
+            (prototype) =>
+              prototype.conceptKey === concept.key &&
+              prototype.eraKey === primaryEra.key,
+          )!;
+          return (
+            <article className="demo-review-card" key={concept.key}>
+              <div className="demo-review-image">
+                <img
+                  src={preview.desktop}
+                  alt={`Desktop preview of ${concept.name}`}
+                />
+              </div>
+              <div className="demo-review-copy">
+                <h3>{concept.name}</h3>
+                <p>{concept.tone}</p>
+                <button
+                  className="secondary review-button"
+                  type="button"
+                  onClick={() => openDemo(concept.key)}
+                >
+                  Review {concept.name}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <dialog
+        ref={dialogRef}
+        className="demo-dialog"
+        aria-labelledby="demo-dialog-title"
+        onClose={() => setActiveConceptKey(null)}
+      >
+        {activeConcept && (
+          <div className="demo-dialog-content">
+            <header className="demo-dialog-header">
+              <div>
+                <p className="eyebrow">Compare the demos</p>
+                <h2 id="demo-dialog-title">{activeConcept.name}</h2>
+              </div>
+              <button
+                className="secondary dialog-close"
+                type="button"
+                onClick={closeDemo}
+                aria-label="Close demo viewer"
+              >
+                Close
+              </button>
+            </header>
+            <div
+              className="concept-tabs"
+              role="tablist"
+              aria-label="Choose a demo to review"
+            >
+              {concepts.map((concept) => (
+                <button
+                  key={concept.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={concept.key === activeConceptKey}
+                  className={concept.key === activeConceptKey ? "active" : ""}
+                  onClick={() => setActiveConceptKey(concept.key)}
+                >
+                  {concept.name}
+                </button>
+              ))}
+            </div>
+            <PrototypeViewer
+              key={activeConcept.key}
+              prototypeKey={`${activeConcept.key}-${primaryEra.key}`}
+              onLayoutView={(layout) =>
+                onLayoutView(activeConcept.key, layout)
+              }
+              seenMobile={(layoutsOpened[activeConcept.key] ?? []).includes(
+                "mobile",
+              )}
+              embedded
+            />
+          </div>
+        )}
+      </dialog>
+    </section>
+  );
+}
+
 function App() {
   const steps = useMemo(makeSteps, []);
   const [stepIndex, setStepIndex] = useState(0);
@@ -492,11 +623,20 @@ function App() {
       try {
         const draft = JSON.parse(saved);
         const saved_answers = (draft.answers ?? {}) as Answers;
-        setAnswers(
+        const restoredAnswers = Object.fromEntries(
+          Object.entries(saved_answers).filter(
+            ([id]) => !retiredQuestionIds.has(id) && questionMap.has(id),
+          ),
+        ) as Answers;
+        setAnswers(restoredAnswers);
+        setLayoutsOpened(
           Object.fromEntries(
-            Object.entries(saved_answers).filter(
-              ([id]) => !retiredQuestionIds.has(id) && questionMap.has(id),
-            ),
+            concepts.map((concept) => [
+              concept.key,
+              (restoredAnswers[
+                layoutTrackingId(concept.key)
+              ]?.textAnswer?.split(", ") ?? []).filter(Boolean),
+            ]),
           ),
         );
         setStepIndex(Math.min(draft.stepIndex ?? 0, steps.length - 1));
@@ -528,16 +668,16 @@ function App() {
     headingRef.current?.focus();
   }, [stepIndex]);
   const recordLayout = useCallback(
-    (eraKey: string, layout: "desktop" | "mobile") =>
+    (conceptKey: string, layout: "desktop" | "mobile") =>
       setLayoutsOpened((previous) => {
-        const seen = previous[eraKey] ?? [];
+        const seen = previous[conceptKey] ?? [];
         if (seen.includes(layout)) return previous;
         const next = [...seen, layout];
         setAnswers((current) => ({
           ...current,
-          [layoutTrackingId(eraKey)]: { textAnswer: next.join(", ") },
+          [layoutTrackingId(conceptKey)]: { textAnswer: next.join(", ") },
         }));
-        return { ...previous, [eraKey]: next };
+        return { ...previous, [conceptKey]: next };
       }),
     [],
   );
@@ -575,8 +715,8 @@ function App() {
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
           ? websiteQuestions(step.key)
-          : step.kind === "cross"
-            ? crossIds.map((id) => questionMap.get(id)!)
+          : step.kind === "comparison"
+            ? comparisonIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"
               ? finalIds.map((id) => questionMap.get(id)!)
               : [];
@@ -682,7 +822,7 @@ function App() {
     <>
       <header className="topbar">
         <span className="brand">
-          <img src="/connected-sa-mark.svg" alt="" aria-hidden="true" />
+          <img src="/connected-sa-mark.svg?v=2" alt="" aria-hidden="true" />
           CM1040 <em>Prototype feedback</em>
         </span>
         <span className="counter">
@@ -734,7 +874,11 @@ function App() {
                   : step.title}
               </p>
               <h1 ref={headingRef} tabIndex={-1}>
-                {step.title}
+                {step.kind === "comparison"
+                  ? "Which direction works best?"
+                  : step.kind === "final"
+                    ? "What should the final version become?"
+                    : step.title}
               </h1>
               {step.kind === "prototype" && (
                 <p className="lead">
@@ -744,16 +888,17 @@ function App() {
                   fairly.
                 </p>
               )}
-              {step.kind === "cross" && (
+              {step.kind === "comparison" && (
                 <p className="lead">
-                  Now compare the designs as a whole and think about how a
-                  first-time visitor would use them.
+                  Choose the direction that should lead the final website, then
+                  compare where each demo works best. You can reopen any demo
+                  below without losing your place.
                 </p>
               )}
               {step.kind === "final" && (
                 <p className="lead">
-                  Your most specific suggestion will help turn feedback into a
-                  documented design improvement.
+                  Use your preferred demo as the starting point, then tell us
+                  what the final website should keep, borrow, and improve.
                 </p>
               )}
             </div>
@@ -763,6 +908,12 @@ function App() {
                 prototypeKey={step.prototypeKey!}
                 onLayoutView={onLayoutView}
                 seenMobile={(layoutsOpened[step.key] ?? []).includes("mobile")}
+              />
+            )}
+            {step.kind === "comparison" && (
+              <DemoReview
+                layoutsOpened={layoutsOpened}
+                onLayoutView={recordLayout}
               />
             )}
             <div className="questions">
@@ -837,7 +988,12 @@ function App() {
 }
 
 function Admin() {
-  const [summary, setSummary] = useState<any>({ total: 0, ratings: [] });
+  const [summary, setSummary] = useState<any>({
+    total: 0,
+    ratings: [],
+    firstChoices: [],
+    preferences: [],
+  });
   const [responses, setResponses] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [error, setError] = useState("");
@@ -852,16 +1008,24 @@ function Admin() {
       })
       .catch(() => setError("Results could not be loaded."));
   }, []);
-  const ratingMap = new Map<string, any>(
-    (summary.ratings ?? []).map(
-      (r: any) => [r.question_id, r] as [string, any],
-    ),
-  );
+  const preferenceCards = [
+    ["preferred_at_glance", "Easiest at a glance"],
+    ["preferred_first_time_use", "Easiest first visit"],
+    ["preferred_visual_design", "Strongest visual design"],
+    ["preferred_navigation", "Clearest navigation"],
+    ["preferred_readability", "Easiest to read"],
+    ["preferred_responsive_design", "Best desktop and mobile"],
+  ] as const;
+  const leadingPreference = (questionId: string) =>
+    (summary.preferences ?? []).find(
+      (item: any) => item.question_id === questionId,
+    );
+  const firstChoice = summary.firstChoices?.[0];
   return (
     <>
       <header className="topbar">
         <span className="brand">
-          <img src="/connected-sa-mark.svg" alt="" aria-hidden="true" />
+          <img src="/connected-sa-mark.svg?v=2" alt="" aria-hidden="true" />
           CM1040 <em>Survey results</em>
         </span>
         <a className="admin-link" href="/">
@@ -889,21 +1053,21 @@ function Admin() {
             <span>Completed responses</span>
             <strong>{summary.total}</strong>
           </div>
-          {[
-            "overall_visual_design",
-            "overall_usability",
-            "overall_navigation",
-            "overall_readability",
-            "overall_mobile_design",
-          ].map((id) => (
-            <div className="stat-card" key={id}>
-              <span>{id.replace("overall_", "").replaceAll("_", " ")}</span>
-              <strong>
-                {ratingMap.get(id)?.average ?? "—"}
-                <small>/ 5</small>
-              </strong>
-            </div>
-          ))}
+          <div className="stat-card">
+            <span>Overall favourite</span>
+            <strong>{firstChoice?.option ?? "—"}</strong>
+            {firstChoice && <small>{firstChoice.count} first-choice votes</small>}
+          </div>
+          {preferenceCards.map(([id, label]) => {
+            const leader = leadingPreference(id);
+            return (
+              <div className="stat-card" key={id}>
+                <span>{label}</span>
+                <strong>{leader?.option ?? "—"}</strong>
+                {leader && <small>{leader.count} responses</small>}
+              </div>
+            );
+          })}
         </section>
         <section className="admin-panel">
           <h2>Responses</h2>

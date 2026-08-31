@@ -57,7 +57,6 @@ const retiredQuestions: Question[] = [
   ...eras.map((era) => text(`layouts_viewed_${era.key}`, `Which layouts did you look at for the ${era.label} designs?`)),
   ...eras.map((era) => text(`layouts_opened_${era.key}`, `Layouts actually opened for ${era.label}`)),
 ].map((question) => ({ ...question, required: false, hidden: true }));
-export const retiredQuestionIds = new Set(retiredQuestions.map((question) => question.id));
 
 /** How each website presents its material — the difference actually being
  *  tested, so it is asked in the terms of that website's own approach. */
@@ -98,7 +97,7 @@ export const screenQuestions = (prototypeKey: string, conceptKey: string, concep
         { ...text(`${prototypeKey}_change`, `What would you change about the ${conceptName} ${eraLabel} page?`, false, true), prototypeKey },
       ];
 
-export const crossConceptQuestions: Question[] = [
+const legacyOverallQuestions: Question[] = [
   rating("layout_glance", "How easy is the website to understand at a glance?", "clarity"),
   choice("layout_order", "Do you think the information is arranged in a logical order?", ["Yes", "Mostly", "Unsure", "Not really", "No"]),
   choice("layout_balance", "Does the page feel too empty, too crowded, or balanced?", ["Much too empty", "Slightly too empty", "Balanced", "Slightly too crowded", "Much too crowded"]),
@@ -138,12 +137,103 @@ export const crossConceptQuestions: Question[] = [
   text("final_comments", "Is there anything else you would like to say about the designs?"),
 ];
 
+const retainedOverallIds = new Set([
+  "concept_ranking",
+  "concept_ranking_reason",
+  "most_important_improvement",
+  "add_or_remove",
+  "final_comments",
+]);
+const retiredOverallQuestions = legacyOverallQuestions
+  .filter((question) => !retainedOverallIds.has(question.id))
+  .map((question) => ({ ...question, required: false, hidden: true }));
+
+export const conceptPreferenceOptions = [
+  ...concepts.map((concept) => concept.name),
+  "No clear preference",
+];
+
+export const comparisonQuestions: Question[] = [
+  {
+    id: "concept_ranking",
+    text: "Rank the three demos from the best foundation for the final website to the least suitable.",
+    type: "ranking",
+    required: true,
+    options: concepts.map((concept) => concept.name),
+  },
+  text(
+    "concept_ranking_reason",
+    "What made your first-choice demo the strongest overall?",
+    true,
+  ),
+  choice(
+    "preferred_at_glance",
+    "Which demo is easiest to understand at a glance?",
+    conceptPreferenceOptions,
+  ),
+  choice(
+    "preferred_first_time_use",
+    "Which demo would be easiest for a first-time visitor to use?",
+    conceptPreferenceOptions,
+  ),
+  choice(
+    "preferred_visual_design",
+    "Which demo has the strongest visual design?",
+    conceptPreferenceOptions,
+  ),
+  choice(
+    "preferred_navigation",
+    "Which demo has the clearest navigation?",
+    conceptPreferenceOptions,
+  ),
+  choice(
+    "preferred_readability",
+    "Which demo is easiest to read?",
+    conceptPreferenceOptions,
+  ),
+  choice(
+    "preferred_responsive_design",
+    "Which demo works best across desktop and mobile?",
+    conceptPreferenceOptions,
+  ),
+];
+
+export const finalBuildQuestions: Question[] = [
+  text(
+    "preferred_concept_keep",
+    "What should the final website keep from your first-choice demo?",
+    true,
+  ),
+  text(
+    "other_concepts_borrow",
+    "Which ideas or features, if any, should it borrow from the other two demos?",
+    true,
+  ),
+  text(
+    "most_important_improvement",
+    "If you could make one change before the final website is built, what would you change and why?",
+    true,
+  ),
+  text(
+    "add_or_remove",
+    "Is there anything the final website should add or remove?",
+  ),
+  text("final_comments", "Is there anything else you would like to say about the final website?"),
+];
+
+export const retiredQuestionIds = new Set([
+  ...retiredQuestions,
+  ...retiredOverallQuestions,
+].map((question) => question.id));
+
 export const questions: Question[] = [
   ...globalQuestions,
   ...retiredQuestions,
+  ...retiredOverallQuestions,
   ...prototypes.flatMap((p) => screenQuestions(p.key, p.conceptKey, p.conceptName, p.eraLabel, p.eraKey)),
   ...layoutQuestions,
-  ...crossConceptQuestions,
+  ...comparisonQuestions,
+  ...finalBuildQuestions,
 ].map((q) => q.id === "text_too_small_details" ? { ...q, showWhen: { questionId: "text_too_small", equals: "Yes" } } : q);
 export const questionMap = new Map(questions.map((q) => [q.id, q]));
 export const getPrototype = (key: string) => prototypes.find((p) => p.key === key);
