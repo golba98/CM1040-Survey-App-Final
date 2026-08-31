@@ -8,6 +8,7 @@ import {
   prototypes,
   questionMap,
   questions,
+  retiredQuestionIds,
   type Question,
 } from "./shared/survey";
 import "./styles.css";
@@ -23,12 +24,6 @@ type Step = {
   prototypeKey?: string;
 };
 const draftKey = "cm1040-survey:draft:v1";
-const firstIds = [
-  "first_impression_visual",
-  "first_impression_purpose",
-  "first_attention",
-  "first_distraction",
-];
 const participantIds = [
   "participant_name",
   "participant_device",
@@ -239,12 +234,12 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
   return (
     <section
       className="prototype-viewer"
-      aria-label={`${p.conceptName}, ${p.eraLabel} prototype`}
+      aria-label={`${active.conceptName}, ${active.eraLabel} prototype`}
     >
       <div className="viewer-header">
         <div>
           <p className="eyebrow">Prototype screen</p>
-          <h2>{p.conceptName}</h2>
+          <h2>{active.conceptName}</h2>
           <p>
             {p.eraLabel} · {p.title}
           </p>
@@ -294,7 +289,11 @@ function App() {
     if (saved) {
       try {
         const draft = JSON.parse(saved);
-        setAnswers(draft.answers ?? {});
+        const savedAnswers = (draft.answers ?? {}) as Answers;
+        const restoredAnswers = Object.fromEntries(
+          Object.entries(savedAnswers).filter(([id]) => !retiredQuestionIds.has(id)),
+        ) as Answers;
+        setAnswers(restoredAnswers);
         setStepIndex(Math.min(draft.stepIndex ?? 0, steps.length - 1));
         setResponseUuid(draft.responseUuid ?? crypto.randomUUID());
       } catch {
@@ -334,12 +333,7 @@ function App() {
       step.kind === "participant"
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
-          ? [
-              ...(stepIndex === 2
-                ? firstIds.map((id) => questionMap.get(id)!)
-                : []),
-              ...questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`),
-            ]
+          ? questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`)
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"

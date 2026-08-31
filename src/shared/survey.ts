@@ -30,24 +30,39 @@ export const globalQuestions: Question[] = [
   { id: "participant_name", text: "What name or nickname would you like to use?", type: "text" },
   choice("participant_device", "What device are you currently using to complete this survey?", ["Desktop computer", "Laptop", "Mobile phone", "Tablet", "Other"]),
   choice("website_experience", "How comfortable are you with using websites in general?", ["1 — Not very comfortable", "2 — Slightly comfortable", "3 — Comfortable", "4 — Very comfortable", "5 — Extremely comfortable"]),
+];
+
+const retiredFirstImpressionQuestions: Question[] = [
   rating("first_impression_visual", "Looking at this design for the first time, how visually appealing do you find it?"),
   choice("first_impression_purpose", "When you first look at this page, is it clear what the website is about?", ["Yes, immediately", "Mostly", "Somewhat", "Not really", "No"]),
   text("first_attention", "What is the first thing on the page that catches your attention?", true),
   text("first_distraction", "Does anything on this page feel unnecessary, distracting or out of place?"),
-];
+].map((question) => ({ ...question, required: false }));
 
-export const screenQuestions = (prototypeKey: string, conceptKey: string, eraLabel: string): Question[] => [
-  { ...rating(`${prototypeKey}_visual_appeal`, `How visually appealing is this ${eraLabel} page?`), prototypeKey },
-  { ...rating(`${prototypeKey}_ease_of_use`, `How easy would this ${eraLabel} page be to use?`), prototypeKey },
-  { ...choice(`${prototypeKey}_purpose_clear`, "Is the purpose of this page clear?", ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
-  { ...text(`${prototypeKey}_confusing`, "Is there anything on this page that you found confusing?"), prototypeKey },
-  { ...text(`${prototypeKey}_change`, "What would you change about this page?", false, true), prototypeKey },
+export const retiredQuestionIds = new Set(retiredFirstImpressionQuestions.map((question) => question.id));
+
+const conceptFirstImpressionQuestions = (concept: typeof concepts[number]): Question[] => {
+  const prototypeKey = `${concept.key}-bandwidth`;
+  return [
+    { ...rating(`${concept.key}_first_impression_visual`, `Looking at the ${concept.name} design for the first time, how visually appealing do you find it?`), prototypeKey },
+    { ...choice(`${concept.key}_first_impression_purpose`, `When you first look at the ${concept.name} design, is it clear what the website is about?`, ["Yes, immediately", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+    { ...text(`${concept.key}_first_attention`, `What is the first thing in the ${concept.name} design that catches your attention?`), prototypeKey },
+    { ...text(`${concept.key}_first_distraction`, `Does anything in the ${concept.name} design feel unnecessary, distracting, or out of place?`), prototypeKey },
+  ].map((question) => ({ ...question, required: false, stronglyEncouraged: true }));
+};
+
+export const screenQuestions = (prototypeKey: string, conceptKey: string, conceptName: string, eraLabel: string): Question[] => [
+  { ...rating(`${prototypeKey}_visual_appeal`, `How visually appealing is the ${conceptName} ${eraLabel} page?`), prototypeKey },
+  { ...rating(`${prototypeKey}_ease_of_use`, `How easy would the ${conceptName} ${eraLabel} page be to use?`), prototypeKey },
+  { ...choice(`${prototypeKey}_purpose_clear`, `Is the purpose of the ${conceptName} ${eraLabel} page clear?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+  { ...text(`${prototypeKey}_confusing`, `Is there anything in the ${conceptName} ${eraLabel} page that you found confusing?`), prototypeKey },
+  { ...text(`${prototypeKey}_change`, `What would you change about the ${conceptName} ${eraLabel} page?`, false, true), prototypeKey },
   ...(conceptKey === "timeline" ? [
-    { ...choice(`${prototypeKey}_timeline_flow`, "Are the dates and milestone cards easy to follow in order?", ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+    { ...choice(`${prototypeKey}_timeline_flow`, `Are the dates and milestone cards in Timeline History ${eraLabel} easy to follow in order?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
   ] : conceptKey === "editorial" ? [
-    { ...choice(`${prototypeKey}_story_scan`, "Is it easy to scan the story sections and supporting archive content?", ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+    { ...choice(`${prototypeKey}_story_scan`, `Is it easy to scan the story sections and supporting archive content in Editorial Story ${eraLabel}?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
   ] : [
-    { ...choice(`${prototypeKey}_data_scan`, "Do the indicators, map/chart, and event records make the information easier to understand?", ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+    { ...choice(`${prototypeKey}_data_scan`, `Do the indicators, map/chart, and event records in Visual Data ${eraLabel} make the information easier to understand?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
   ]),
 ].map((question) => ({ ...question, required: false, stronglyEncouraged: true }));
 
@@ -99,7 +114,13 @@ export const crossConceptQuestions: Question[] = [
   text("final_comments", "Is there anything else you would like to say about the designs?"),
 ];
 
-export const questions: Question[] = [...globalQuestions, ...prototypes.flatMap((p) => screenQuestions(p.key, p.conceptKey, p.eraLabel)), ...crossConceptQuestions]
+export const questions: Question[] = [
+  ...globalQuestions,
+  ...retiredFirstImpressionQuestions,
+  ...concepts.flatMap(conceptFirstImpressionQuestions),
+  ...prototypes.flatMap((prototype) => screenQuestions(prototype.key, prototype.conceptKey, prototype.conceptName, prototype.eraLabel)),
+  ...crossConceptQuestions,
+]
   .map((q) => q.id === "text_too_small_details" ? { ...q, showWhen: { questionId: "text_too_small", equals: "Yes" } } : q);
 export const questionMap = new Map(questions.map((q) => [q.id, q]));
 export const getPrototype = (key: string) => prototypes.find((p) => p.key === key);
