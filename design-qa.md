@@ -19,7 +19,7 @@ The focused map comparison confirms that the province boundaries, neighboring-co
 ## Findings and iteration history
 
 - P1 fixed: the oversized map dominated the embedded prototype and hid surrounding context. Constrained and centered the existing SVG without rasterizing it.
-- P1 fixed: chapter selection was unavailable beneath the three concept tabs. Added 2006–2012, 2013–2019, and 2020–2026 tabs linked to the embedded route and optional question set.
+- P1 fixed: chapter selection now remains inside each mini app. Its existing 2006–2012, 2013–2019, and 2020–2026 navigation is linked back to the matching optional survey question set.
 - P2 fixed: the viewer heading and subtitle could describe a different selection. They now derive from the active concept and era.
 - Post-fix evidence: Chrome confirmed Visual Data + 2020–2026 selects `/live-prototypes/visual-data/digital-divide.html` and displays the Visual Data 2020–2026 questions.
 
@@ -34,7 +34,7 @@ The focused map comparison confirms that the province boundaries, neighboring-co
 ## Interaction and technical checks
 
 - Concept tabs: passed.
-- Era tabs: passed.
+- Mini-app era navigation: passed.
 - Embedded route updates: passed.
 - Matching optional questions: passed.
 - Chrome console errors: none.

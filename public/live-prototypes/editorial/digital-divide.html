@@ -3,18 +3,23 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Editorial prototype for South Africa's modern internet landscape and digital divide, 2020 to 2026.">
-    <title>2020–2026 | Editorial Story Demo</title>
+    <meta name="color-scheme" content="dark light">
+    <meta name="description" content="Editorial investigative prototype for South Africa's internet history, 2020 to 2026.">
+    <title>Chapter 03 · 2020–2026 | The Telecom Chronicle</title>
     <script>
       (function() {
-        const theme = localStorage.getItem("theme");
-        if (theme === "dark" || theme === "light") {
-          document.documentElement.setAttribute("data-theme", theme);
+        const stored = localStorage.getItem("theme");
+        if (stored === "dark" || stored === "light") {
+          document.documentElement.setAttribute("data-theme", stored);
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
-    <script type="module" crossorigin src="./assets/main-C4SnsWfh.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/main-kkD_JFvT.css">
+    <script type="module" crossorigin src="./assets/main-sYxy3HYG.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-B1WTpfV2.css">
   </head>
   <body data-page="divide">
     <div id="app"></div>

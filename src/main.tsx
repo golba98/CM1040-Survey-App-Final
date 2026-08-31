@@ -267,11 +267,25 @@ function PrototypeViewer({ prototypeKey, onSelectionChange }: { prototypeKey: st
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
         {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onSelectionChange(concept.key, eraKey); }}>{concept.name}</button>)}
       </div>
-      <div className="era-tabs" role="tablist" aria-label={`${active.conceptName} chapters`}>
-        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => { setEraKey(era.key); onSelectionChange(conceptKey, era.key); }}>{era.label}</button>)}
-      </div>
       <figure className={`prototype-frame ${layout}`}>
-        <iframe key={`${prototypeUrl}-${layout}`} className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
+        <iframe
+          key={`${prototypeUrl}-${layout}`}
+          className="prototype-live"
+          title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`}
+          src={prototypeUrl}
+          onLoad={(event) => {
+            const pathname = event.currentTarget.contentWindow?.location.pathname ?? "";
+            const nextEra = pathname.endsWith("mobile-local.html")
+              ? "local"
+              : pathname.endsWith("digital-divide.html")
+                ? "divide"
+                : "bandwidth";
+            if (nextEra !== eraKey) {
+              setEraKey(nextEra);
+              onSelectionChange(conceptKey, nextEra);
+            }
+          }}
+        />
       </figure>
     </section>
   );
