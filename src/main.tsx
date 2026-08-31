@@ -16,6 +16,7 @@ import {
   globalQuestions,
   layoutQuestionId,
   layoutTrackingId,
+  primaryEra,
   prototypes,
   questionMap,
   questions,
@@ -35,9 +36,9 @@ type Step = {
 };
 const draftKey = "cm1040-survey:draft:v2";
 /** Stated completion time on the welcome step. Measured against the real
- *  question set: 89 questions asked, 31 required (26 of them a single click) —
- *  roughly 8 minutes answering only what is required and about 30 filling in
- *  every optional comment. Recount before changing this. */
+ *  question set: 77 questions asked, 49 required (39 of them a single click) —
+ *  roughly 14 minutes answering only what is required and about 30 filling in
+ *  every optional comment too. Recount before changing this. */
 const MINUTES = "15–20";
 const participantIds = [
   "participant_consent",
@@ -67,11 +68,11 @@ function makeSteps(): Step[] {
   return [
     { key: "welcome", title: "Welcome", kind: "welcome" },
     { key: "participant", title: "About you", kind: "participant" },
-    ...eras.map((era) => ({
-      key: era.key,
-      title: era.label,
+    ...concepts.map((concept) => ({
+      key: concept.key,
+      title: concept.name,
       kind: "prototype" as const,
-      prototypeKey: `timeline-${era.key}`,
+      prototypeKey: `${concept.key}-${primaryEra.key}`,
     })),
     { key: "cross", title: "Overall experience", kind: "cross" },
     { key: "final", title: "Final thoughts", kind: "final" },
@@ -361,18 +362,15 @@ function DeviceFrame({
 
 function PrototypeViewer({
   prototypeKey,
-  conceptKey,
-  onConceptChange,
   onLayoutView,
   seenMobile,
 }: {
   prototypeKey: string;
-  conceptKey: string;
-  onConceptChange: (key: string) => void;
   onLayoutView: (layout: "desktop" | "mobile") => void;
   seenMobile: boolean;
 }) {
-  const eraKey = prototypes.find((item) => item.key === prototypeKey)!.eraKey;
+  const active = prototypes.find((item) => item.key === prototypeKey)!;
+  const { conceptKey, eraKey } = active;
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
   const showLayout = (next: "desktop" | "mobile") => {
     setLayout(next);
@@ -381,9 +379,6 @@ function PrototypeViewer({
   useEffect(() => onLayoutView("desktop"), [onLayoutView]);
   const [stageWidth, setStageWidth] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
-  const active = prototypes.find(
-    (item) => item.conceptKey === conceptKey && item.eraKey === eraKey,
-  )!;
   const page =
     eraKey === "bandwidth"
       ? "index.html"
@@ -414,10 +409,8 @@ function PrototypeViewer({
       <div className="viewer-header">
         <div>
           <p className="eyebrow">Prototype screen</p>
-          <h2>{active.conceptName}</h2>
-          <p>
-            {active.eraLabel} · {active.title}
-          </p>
+          <h2>{active.eraLabel}</h2>
+          <p>{active.title}</p>
         </div>
         <div
           className="layout-toggle"
@@ -437,24 +430,6 @@ function PrototypeViewer({
             Mobile
           </button>
         </div>
-      </div>
-      <div
-        className="concept-tabs"
-        role="tablist"
-        aria-label="Prototype concepts"
-      >
-        {concepts.map((concept) => (
-          <button
-            key={concept.key}
-            role="tab"
-            aria-selected={conceptKey === concept.key}
-            className={conceptKey === concept.key ? "active" : ""}
-            onClick={() => onConceptChange(concept.key)}
-          >
-            {concept.name}
-            <small>{concept.tone}</small>
-          </button>
-        ))}
       </div>
       <figure className={`prototype-frame ${layout}`}>
         <div className="prototype-stage" ref={stageRef}>
@@ -490,7 +465,6 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
-  const [activeConcept, setActiveConcept] = useState("timeline");
   const [pendingFocus, setPendingFocus] = useState("");
   // Which layouts the participant actually opened, per era step. Recorded
   // alongside their own answer so the two can be compared.
@@ -537,7 +511,6 @@ function App() {
   }, [answers, submitted]);
   const step = steps[stepIndex];
   useEffect(() => {
-    setActiveConcept("timeline");
     headingRef.current?.focus();
   }, [stepIndex]);
   const recordLayout = useCallback(
@@ -574,21 +547,20 @@ function App() {
     });
   };
   const isVisible = (q: Question) =>
-    !q.showWhen ||
-    answers[q.showWhen.questionId]?.textAnswer === q.showWhen.equals;
-  const conceptQuestions = (conceptKey: string): Question[] =>
+    !q.hidden &&
+    (!q.showWhen ||
+      answers[q.showWhen.questionId]?.textAnswer === q.showWhen.equals);
+  /** Every question belonging to one website, across all three of its chapters. */
+  const websiteQuestions = (conceptKey: string): Question[] =>
     questions.filter(
-      (q) => q.prototypeKey === `${conceptKey}-${step.key}` && isVisible(q),
+      (q) => q.prototypeKey?.startsWith(`${conceptKey}-`) && isVisible(q),
     );
   const visibleQuestions = (): Question[] => {
     const list =
       step.kind === "participant"
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
-          ? [
-              ...conceptQuestions(activeConcept),
-              questionMap.get(layoutQuestionId(step.key))!,
-            ]
+          ? websiteQuestions(step.key)
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"
@@ -599,22 +571,13 @@ function App() {
   const validateStep = () => {
     const next: Record<string, string> = {};
     let focusId = "";
-    let focusConcept = activeConcept;
-    const check = (list: Question[], conceptKey: string) => {
-      for (const q of list) {
-        if (!isVisible(q)) continue;
-        if (!isMissing(q, answers[q.id])) continue;
-        next[q.id] = "Please answer this question before continuing.";
-        if (!focusId) {
-          focusId = q.id;
-          focusConcept = conceptKey;
-        }
-      }
-    };
-    check(visibleQuestions(), activeConcept);
+    for (const q of visibleQuestions()) {
+      if (!isVisible(q) || !isMissing(q, answers[q.id])) continue;
+      next[q.id] = "Please answer this question before continuing.";
+      if (!focusId) focusId = q.id;
+    }
     setErrors(next);
     if (!focusId) return true;
-    if (focusConcept !== activeConcept) setActiveConcept(focusConcept);
     setPendingFocus(focusId);
     return false;
   };
@@ -677,6 +640,18 @@ function App() {
       setSubmitting(false);
     }
   };
+  const stepQuestions = visibleQuestions();
+  const isOtherChapter = (q: Question) =>
+    !!q.prototypeKey && !q.prototypeKey.endsWith(`-${primaryEra.key}`);
+  const primaryQuestions = stepQuestions
+    .filter((q) => !isOtherChapter(q))
+    .sort((a, b) => Number(!!b.required) - Number(!!a.required));
+  const otherChapterQuestions = stepQuestions.filter(isOtherChapter);
+  const websiteNumber = concepts.findIndex((c) => c.key === step.key) + 1;
+  const otherEraLabels = eras
+    .filter((era) => era.key !== primaryEra.key)
+    .map((era) => era.label)
+    .join(" or ");
   if (submitted)
     return (
       <main className="shell confirmation">
@@ -740,11 +715,21 @@ function App() {
           <>
             <div className="step-heading">
               <p className="eyebrow">
-                {step.kind === "prototype" ? "Screen review" : step.title}
+                {step.kind === "prototype"
+                  ? `Website ${websiteNumber} of ${concepts.length}`
+                  : step.title}
               </p>
               <h1 ref={headingRef} tabIndex={-1}>
                 {step.title}
               </h1>
+              {step.kind === "prototype" && (
+                <p className="lead">
+                  {concepts.find((c) => c.key === step.key)?.tone}. The
+                  questions below are about its {primaryEra.label} page — the
+                  same chapter on all three websites, so they can be compared
+                  fairly.
+                </p>
+              )}
               {step.kind === "cross" && (
                 <p className="lead">
                   Now compare the designs as a whole and think about how a
@@ -762,14 +747,12 @@ function App() {
               <PrototypeViewer
                 key={step.prototypeKey}
                 prototypeKey={step.prototypeKey!}
-                conceptKey={activeConcept}
-                onConceptChange={setActiveConcept}
                 onLayoutView={onLayoutView}
                 seenMobile={(layoutsOpened[step.key] ?? []).includes("mobile")}
               />
             )}
             <div className="questions">
-              {visibleQuestions().map((q) => (
+              {primaryQuestions.map((q) => (
                 <QuestionField
                   key={q.id}
                   q={q}
@@ -779,6 +762,28 @@ function App() {
                 />
               ))}
             </div>
+            {otherChapterQuestions.length > 0 && (
+              <details className="optional-block">
+                <summary>
+                  Other chapters — optional
+                  <span>
+                    If you browsed to {otherEraLabels} inside the website, you
+                    can add a note about them here.
+                  </span>
+                </summary>
+                <div className="questions">
+                  {otherChapterQuestions.map((q) => (
+                    <QuestionField
+                      key={q.id}
+                      q={q}
+                      answer={answers[q.id]}
+                      error={errors[q.id]}
+                      setAnswer={(a) => setAnswer(q.id, a)}
+                    />
+                  ))}
+                </div>
+              </details>
+            )}
             {apiError && (
               <p className="api-error" role="alert">
                 {apiError}

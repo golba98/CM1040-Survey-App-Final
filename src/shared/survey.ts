@@ -29,11 +29,13 @@ export const prototypes = concepts.flatMap((concept) => eras.map((era) => ({
 const rating = (id: string, text: string, scale: Scale = "quality", layoutType: LayoutType = "general"): Question => ({ id, text, type: "rating", required: true, min: 1, max: 5, scale, layoutType });
 const choice = (id: string, text: string, options: string[], required = true): Question => ({ id, text, type: "choice", required, options });
 const text = (id: string, textValue: string, required = false, stronglyEncouraged = false): Question => ({ id, text: textValue, type: "text", required, stronglyEncouraged });
-/** Per-demo feedback is invited, not compelled. */
-const encouraged = (question: Question): Question => ({ ...question, required: false, stronglyEncouraged: true });
 
 export const consentStatement =
   "Your answers are used only for this Web Development coursework. Nothing is collected that identifies you: the nickname is optional and everything else is a rating or a comment about the designs. Taking part is voluntary and you can close the page at any point without submitting.";
+
+/** The chapter every participant reviews, so the three websites are compared on
+ *  identical content. The other two chapters are browsable but optional. */
+export const primaryEra = eras[0];
 
 export const globalQuestions: Question[] = [
   choice("participant_consent", "Please confirm before you begin.", ["Yes, I agree to take part"]),
@@ -42,8 +44,8 @@ export const globalQuestions: Question[] = [
   choice("website_experience", "How comfortable are you with using websites in general?", ["1 — Not very comfortable", "2 — Slightly comfortable", "3 — Comfortable", "4 — Very comfortable", "5 — Extremely comfortable"]),
 ];
 
-/** Superseded by the per-concept versions below. Kept so that answers already
- *  collected under these ids still resolve, and so saved drafts can drop them. */
+/** Superseded ids. Kept so answers already collected still resolve, and so a
+ *  saved draft from an older layout can drop them on restore. */
 const retiredQuestions: Question[] = [
   rating("first_impression_visual", "Looking at this design for the first time, how visually appealing do you find it?"),
   choice("first_impression_purpose", "When you first look at this page, is it clear what the website is about?", ["Yes, immediately", "Mostly", "Somewhat", "Not really", "No"]),
@@ -52,45 +54,49 @@ const retiredQuestions: Question[] = [
   text("remove_from_site", "Is there anything you think should be removed from the website?"),
   text("add_to_site", "Is there anything you think should be added to the website?"),
   text("overall_confusing", "Was there anything that confused you while looking through the designs?"),
+  ...eras.map((era) => text(`layouts_viewed_${era.key}`, `Which layouts did you look at for the ${era.label} designs?`)),
+  ...eras.map((era) => text(`layouts_opened_${era.key}`, `Layouts actually opened for ${era.label}`)),
 ].map((question) => ({ ...question, required: false, hidden: true }));
 export const retiredQuestionIds = new Set(retiredQuestions.map((question) => question.id));
 
-const conceptFirstImpressionQuestions = (concept: (typeof concepts)[number]): Question[] => {
-  const prototypeKey = `${concept.key}-${eras[0].key}`;
-  return [
-    { ...rating(`${concept.key}_first_impression_visual`, `Looking at the ${concept.name} design for the first time, how visually appealing do you find it?`), prototypeKey },
-    { ...text(`${concept.key}_first_attention`, `What is the first thing in the ${concept.name} design that catches your attention?`), prototypeKey },
-    { ...text(`${concept.key}_first_distraction`, `Does anything in the ${concept.name} design feel unnecessary, distracting, or out of place?`), prototypeKey },
-  ].map(encouraged);
-};
+/** How each website presents its material — the difference actually being
+ *  tested, so it is asked in the terms of that website's own approach. */
+const conveysQuestion = (conceptKey: string, conceptName: string): string =>
+  conceptKey === "timeline"
+    ? `Do the dated milestone cards in ${conceptName} make the story easy to follow in order?`
+    : conceptKey === "editorial"
+      ? `Does the long-form report layout in ${conceptName} make the story easy to follow?`
+      : `Do the indicators, map and charts in ${conceptName} make the information easier to understand?`;
 
-/** One confirmation per era step that both layouts were looked at, plus a
- *  hidden companion the app fills in from the Desktop/Mobile toggle. */
-export const layoutQuestions: Question[] = eras.flatMap((era) => [
-  { ...choice(`layouts_viewed_${era.key}`, `Which layouts did you look at for the ${era.label} designs?`, ["Both desktop and mobile", "Desktop only", "Mobile only"]), layoutType: "comparison" as LayoutType },
-  { id: `layouts_opened_${era.key}`, text: `Layouts actually opened for ${era.label}`, type: "text", required: false, hidden: true, layoutType: "comparison" },
+/** One confirmation per website that both layouts were looked at, plus a hidden
+ *  companion the app fills in from the Desktop/Mobile toggle. */
+export const layoutQuestions: Question[] = concepts.flatMap((concept) => [
+  { ...choice(`layouts_viewed_${concept.key}`, `Which layouts of ${concept.name} did you look at?`, ["Both desktop and mobile", "Desktop only", "Mobile only"]), prototypeKey: `${concept.key}-${primaryEra.key}`, layoutType: "comparison" as LayoutType },
+  { id: `layouts_opened_${concept.key}`, text: `Layouts actually opened for ${concept.name}`, type: "text", required: false, hidden: true, prototypeKey: `${concept.key}-${primaryEra.key}`, layoutType: "comparison" },
 ]);
-export const layoutQuestionId = (eraKey: string) => `layouts_viewed_${eraKey}`;
-export const layoutTrackingId = (eraKey: string) => `layouts_opened_${eraKey}`;
+export const layoutQuestionId = (conceptKey: string) => `layouts_viewed_${conceptKey}`;
+export const layoutTrackingId = (conceptKey: string) => `layouts_opened_${conceptKey}`;
 
-/** The first era step asks the full block; later steps ask a short one, so the
- *  survey stays completable without losing per-screen coverage. */
-export const screenQuestions = (prototypeKey: string, conceptKey: string, conceptName: string, eraLabel: string, isFirstEra = true): Question[] => [
-  { ...rating(`${prototypeKey}_visual_appeal`, `How visually appealing is the ${conceptName} ${eraLabel} page?`), prototypeKey },
-  { ...rating(`${prototypeKey}_ease_of_use`, `How easy would the ${conceptName} ${eraLabel} page be to use?`), prototypeKey },
-  ...(isFirstEra ? [
-    { ...choice(`${prototypeKey}_purpose_clear`, `Is the purpose of the ${conceptName} ${eraLabel} page clear?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
-    ...(conceptKey === "timeline" ? [
-      { ...choice(`${prototypeKey}_timeline_flow`, `Are the dates and milestone cards in ${conceptName} ${eraLabel} easy to follow in order?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
-    ] : conceptKey === "editorial" ? [
-      { ...choice(`${prototypeKey}_story_scan`, `Is it easy to scan the story sections and supporting archive content in ${conceptName} ${eraLabel}?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
-    ] : [
-      { ...choice(`${prototypeKey}_data_scan`, `Do the indicators, map/chart, and event records in ${conceptName} ${eraLabel} make the information easier to understand?`, ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
-    ]),
-    { ...text(`${prototypeKey}_confusing`, `Is there anything in the ${conceptName} ${eraLabel} page that you found confusing?`), prototypeKey },
-  ] : []),
-  { ...text(`${prototypeKey}_change`, `What would you change about the ${conceptName} ${eraLabel} page?`, false, true), prototypeKey },
-].map(encouraged);
+/**
+ * The 2006-2012 chapter carries the required block, so every website is judged
+ * on the same content. The other two chapters get a short optional block for
+ * anyone who browses to them inside the mini site.
+ */
+export const screenQuestions = (prototypeKey: string, conceptKey: string, conceptName: string, eraLabel: string, eraKey: string = primaryEra.key): Question[] =>
+  eraKey === primaryEra.key
+    ? [
+        { ...rating(`${conceptKey}_first_impression_visual`, `Looking at ${conceptName} for the first time, how visually appealing do you find it?`), prototypeKey },
+        { ...choice(`${conceptKey}_purpose_clear`, `Looking at ${conceptName}, is it clear what the website is about?`, ["Yes, immediately", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+        { ...rating(`${conceptKey}_ease_of_use`, `How easy would ${conceptName} be to use?`), prototypeKey },
+        { ...choice(`${conceptKey}_conveys`, conveysQuestion(conceptKey, conceptName), ["Yes", "Mostly", "Somewhat", "Not really", "No"]), prototypeKey },
+        { ...text(`${conceptKey}_first_attention`, `What is the first thing in ${conceptName} that catches your attention?`, true), prototypeKey },
+        { ...text(`${conceptKey}_change`, `What would you change about ${conceptName}?`, true), prototypeKey },
+        { ...text(`${conceptKey}_first_distraction`, `Does anything in ${conceptName} feel unnecessary, distracting, or out of place?`), prototypeKey },
+      ]
+    : [
+        { ...rating(`${prototypeKey}_visual_appeal`, `How visually appealing is the ${conceptName} ${eraLabel} page?`), prototypeKey, required: false, stronglyEncouraged: true },
+        { ...text(`${prototypeKey}_change`, `What would you change about the ${conceptName} ${eraLabel} page?`, false, true), prototypeKey },
+      ];
 
 export const crossConceptQuestions: Question[] = [
   rating("layout_glance", "How easy is the website to understand at a glance?", "clarity"),
@@ -135,9 +141,8 @@ export const crossConceptQuestions: Question[] = [
 export const questions: Question[] = [
   ...globalQuestions,
   ...retiredQuestions,
+  ...prototypes.flatMap((p) => screenQuestions(p.key, p.conceptKey, p.conceptName, p.eraLabel, p.eraKey)),
   ...layoutQuestions,
-  ...concepts.flatMap(conceptFirstImpressionQuestions),
-  ...prototypes.flatMap((p) => screenQuestions(p.key, p.conceptKey, p.conceptName, p.eraLabel, p.eraKey === eras[0].key)),
   ...crossConceptQuestions,
 ].map((q) => q.id === "text_too_small_details" ? { ...q, showWhen: { questionId: "text_too_small", equals: "Yes" } } : q);
 export const questionMap = new Map(questions.map((q) => [q.id, q]));
