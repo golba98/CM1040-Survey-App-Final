@@ -112,14 +112,6 @@ body {
   background: #eef1f3;
   border-radius: 3px;
 }
-.prototype-frame figcaption {
-  color: #53636e;
-  background: #fff;
-}
-.prototype-frame figcaption button,
-.caption-actions button {
-  color: #256b73;
-}
 .question legend {
   color: #24333e;
 }
@@ -269,10 +261,6 @@ select:focus-visible,
   }
   .prototype-frame {
     background: #0e1317;
-  }
-  .prototype-frame figcaption {
-    color: #aebbc4;
-    background: #1b2228;
   }
   .question textarea,
   .question select {

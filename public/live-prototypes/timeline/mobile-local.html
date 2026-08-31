@@ -3,18 +3,23 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Timeline prototype for South Africa's local and mobile internet development, 2013 to 2019.">
+    <meta name="color-scheme" content="dark light">
+    <meta name="description" content="Timeline prototype for South Africa's internet history, 2013 to 2019.">
     <title>2013–2019 | Timeline History Demo</title>
     <script>
       (function() {
-        const theme = localStorage.getItem("theme");
-        if (theme === "dark" || theme === "light") {
-          document.documentElement.setAttribute("data-theme", theme);
+        const stored = localStorage.getItem("theme");
+        if (stored === "dark" || stored === "light") {
+          document.documentElement.setAttribute("data-theme", stored);
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          document.documentElement.setAttribute("data-theme", "light");
+        } else {
+          document.documentElement.setAttribute("data-theme", "dark");
         }
       })();
     </script>
-    <script type="module" crossorigin src="./assets/main-HwU4J8mi.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/main-BM8FT8d7.css">
+    <script type="module" crossorigin src="./assets/main-B7G1l_X8.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-VmPyRrTh.css">
   </head>
   <body data-page="local">
     <div id="app"></div>

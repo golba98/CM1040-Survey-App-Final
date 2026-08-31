@@ -8,6 +8,7 @@ import {
   prototypes,
   questionMap,
   questions,
+  retiredQuestionIds,
   type Question,
 } from "./shared/survey";
 import "./styles.css";
@@ -23,12 +24,6 @@ type Step = {
   prototypeKey?: string;
 };
 const draftKey = "cm1040-survey:draft:v1";
-const firstIds = [
-  "first_impression_visual",
-  "first_impression_purpose",
-  "first_attention",
-  "first_distraction",
-];
 const participantIds = [
   "participant_name",
   "participant_device",
@@ -229,36 +224,25 @@ function currentRanking(
   return values.includes(item) && values[index] !== item;
 }
 
-function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
+function PrototypeViewer({ prototypeKey, onSelectionChange }: { prototypeKey: string; onSelectionChange: (conceptKey: string, eraKey: string) => void }) {
   const p = prototypes.find((item) => item.key === prototypeKey)!;
   const [conceptKey, setConceptKey] = useState(p.conceptKey);
   const [eraKey, setEraKey] = useState(p.eraKey);
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
-  const [open, setOpen] = useState(false);
   const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === eraKey)!;
   const page = eraKey === "bandwidth" ? "index.html" : eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
   const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-      if (event.key === "ArrowLeft") setLayout("desktop");
-      if (event.key === "ArrowRight") setLayout("mobile");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
   return (
     <section
       className="prototype-viewer"
-      aria-label={`${p.conceptName}, ${p.eraLabel} prototype`}
+      aria-label={`${active.conceptName}, ${active.eraLabel} prototype`}
     >
       <div className="viewer-header">
         <div>
           <p className="eyebrow">Prototype screen</p>
-          <h2>{p.conceptName}</h2>
+          <h2>{active.conceptName}</h2>
           <p>
-            {p.eraLabel} · {p.title}
+            {active.eraLabel} · {active.title}
           </p>
         </div>
         <div
@@ -281,74 +265,28 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
         </div>
       </div>
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
-        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}</button>)}
-      </div>
-      <div className="era-tabs" role="tablist" aria-label="Optional era views">
-        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => setEraKey(era.key)}>{era.label} <small>Optional</small></button>)}
+        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onSelectionChange(concept.key, eraKey); }}>{concept.name}</button>)}
       </div>
       <figure className={`prototype-frame ${layout}`}>
-        <iframe className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
-        <figcaption>
-          <button
-            onClick={() => setLayout("desktop")}
-            disabled={layout === "desktop"}
-            aria-label="Previous layout"
-          >
-            ← Previous
-          </button>
-          <span>
-            {layout === "desktop" ? "Desktop layout" : "Mobile layout"}
-          </span>
-          <span className="caption-actions">
-            <button onClick={() => setOpen(true)}>Enlarge image</button>
-            <button
-              onClick={() => setLayout("mobile")}
-              disabled={layout === "mobile"}
-              aria-label="Next layout"
-            >
-              Next →
-            </button>
-          </span>
-        </figcaption>
+        <iframe
+          key={`${prototypeUrl}-${layout}`}
+          className="prototype-live"
+          title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`}
+          src={prototypeUrl}
+          onLoad={(event) => {
+            const pathname = event.currentTarget.contentWindow?.location.pathname ?? "";
+            const nextEra = pathname.endsWith("mobile-local.html")
+              ? "local"
+              : pathname.endsWith("digital-divide.html")
+                ? "divide"
+                : "bandwidth";
+            if (nextEra !== eraKey) {
+              setEraKey(nextEra);
+              onSelectionChange(conceptKey, nextEra);
+            }
+          }}
+        />
       </figure>
-      {open && (
-        <div
-          className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Enlarged prototype image"
-          onClick={() => setOpen(false)}
-        >
-          <button
-            className="lightbox-close"
-            onClick={() => setOpen(false)}
-            aria-label="Close enlarged image"
-          >
-            ×
-          </button>
-          <button
-            className="lightbox-nav left"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("desktop");
-            }}
-            aria-label="Previous layout"
-          >
-            ←
-          </button>
-          <iframe className="prototype-live enlarged" title={`${active.conceptName} enlarged`} src={prototypeUrl} onClick={(e) => e.stopPropagation()} />
-          <button
-            className="lightbox-nav right"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("mobile");
-            }}
-            aria-label="Next layout"
-          >
-            →
-          </button>
-        </div>
-      )}
     </section>
   );
 }
@@ -364,12 +302,17 @@ function App() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
   const [activeConcept, setActiveConcept] = useState("timeline");
+  const [activeEra, setActiveEra] = useState("bandwidth");
   useEffect(() => {
     const saved = localStorage.getItem(draftKey);
     if (saved) {
       try {
         const draft = JSON.parse(saved);
-        setAnswers(draft.answers ?? {});
+        const savedAnswers = (draft.answers ?? {}) as Answers;
+        const restoredAnswers = Object.fromEntries(
+          Object.entries(savedAnswers).filter(([id]) => !retiredQuestionIds.has(id)),
+        ) as Answers;
+        setAnswers(restoredAnswers);
         setStepIndex(Math.min(draft.stepIndex ?? 0, steps.length - 1));
         setResponseUuid(draft.responseUuid ?? crypto.randomUUID());
       } catch {
@@ -395,7 +338,10 @@ function App() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [answers, submitted]);
   const step = steps[stepIndex];
-  useEffect(() => { setActiveConcept("timeline"); }, [stepIndex]);
+  useEffect(() => {
+    setActiveConcept("timeline");
+    setActiveEra(step.prototypeKey?.replace("timeline-", "") ?? "bandwidth");
+  }, [step.prototypeKey]);
   const setAnswer = (id: string, answer: Answer) => {
     setAnswers((previous) => ({ ...previous, [id]: answer }));
     setErrors((previous) => {
@@ -409,12 +355,7 @@ function App() {
       step.kind === "participant"
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
-          ? [
-              ...(stepIndex === 2
-                ? firstIds.map((id) => questionMap.get(id)!)
-                : []),
-              ...questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`),
-            ]
+          ? questions.filter((q) => q.prototypeKey === `${activeConcept}-${activeEra}`)
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"
@@ -569,7 +510,7 @@ function App() {
               <p className="eyebrow">
                 {step.kind === "prototype" ? "Screen review" : step.title}
               </p>
-              <h1>{step.title}</h1>
+              <h1>{step.kind === "prototype" ? eras.find((era) => era.key === activeEra)?.label ?? step.title : step.title}</h1>
               {step.kind === "cross" && (
                 <p className="lead">
                   Now compare the designs as a whole and think about how a
@@ -584,7 +525,14 @@ function App() {
               )}
             </div>
             {step.kind === "prototype" && (
-              <PrototypeViewer prototypeKey={step.prototypeKey!} onConceptChange={setActiveConcept} />
+              <PrototypeViewer
+                key={step.prototypeKey}
+                prototypeKey={step.prototypeKey!}
+                onSelectionChange={(conceptKey, eraKey) => {
+                  setActiveConcept(conceptKey);
+                  setActiveEra(eraKey);
+                }}
+              />
             )}
             <div className="questions">
               {visibleQuestions().map((q) => (
