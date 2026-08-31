@@ -58,11 +58,11 @@ function makeSteps(): Step[] {
   return [
     { key: "welcome", title: "Welcome", kind: "welcome" },
     { key: "participant", title: "About you", kind: "participant" },
-    ...prototypes.map((p) => ({
-      key: p.key,
-      title: `${p.conceptName} · ${p.eraLabel}`,
+    ...eras.map((era) => ({
+      key: era.key,
+      title: era.label,
       kind: "prototype" as const,
-      prototypeKey: p.key,
+      prototypeKey: `timeline-${era.key}`,
     })),
     { key: "cross", title: "Overall experience", kind: "cross" },
     { key: "final", title: "Final thoughts", kind: "final" },
@@ -229,10 +229,14 @@ function currentRanking(
   return values.includes(item) && values[index] !== item;
 }
 
-function PrototypeViewer({ prototypeKey }: { prototypeKey: string }) {
+function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
   const p = prototypes.find((item) => item.key === prototypeKey)!;
+  const [conceptKey, setConceptKey] = useState(p.conceptKey);
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
   const [open, setOpen] = useState(false);
+  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === p.eraKey)!;
+  const page = p.eraKey === "bandwidth" ? "index.html" : p.eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
+  const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -275,14 +279,11 @@ function PrototypeViewer({ prototypeKey }: { prototypeKey: string }) {
           </button>
         </div>
       </div>
+      <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
+        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}{concept.key !== "timeline" && <small>Optional</small>}</button>)}
+      </div>
       <figure className={`prototype-frame ${layout}`}>
-        <img
-          src={layout === "desktop" ? p.desktop : p.mobile}
-          alt={`${p.conceptName} ${p.eraLabel} ${layout} layout`}
-          onError={(e) => {
-            e.currentTarget.alt = "This prototype image could not be loaded.";
-          }}
-        />
+        <iframe className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
         <figcaption>
           <button
             onClick={() => setLayout("desktop")}
@@ -331,11 +332,7 @@ function PrototypeViewer({ prototypeKey }: { prototypeKey: string }) {
           >
             ←
           </button>
-          <img
-            src={layout === "desktop" ? p.desktop : p.mobile}
-            alt={`${p.conceptName} ${p.eraLabel} enlarged ${layout} layout`}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <iframe className="prototype-live enlarged" title={`${active.conceptName} enlarged`} src={prototypeUrl} onClick={(e) => e.stopPropagation()} />
           <button
             className="lightbox-nav right"
             onClick={(e) => {
@@ -362,6 +359,7 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
+  const [activeConcept, setActiveConcept] = useState("timeline");
   useEffect(() => {
     const saved = localStorage.getItem(draftKey);
     if (saved) {
@@ -393,6 +391,7 @@ function App() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [answers, submitted]);
   const step = steps[stepIndex];
+  useEffect(() => { setActiveConcept("timeline"); }, [stepIndex]);
   const setAnswer = (id: string, answer: Answer) => {
     setAnswers((previous) => ({ ...previous, [id]: answer }));
     setErrors((previous) => {
@@ -410,7 +409,7 @@ function App() {
               ...(stepIndex === 2
                 ? firstIds.map((id) => questionMap.get(id)!)
                 : []),
-              ...questions.filter((q) => q.prototypeKey === step.prototypeKey),
+              ...questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`),
             ]
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
@@ -454,7 +453,7 @@ function App() {
     return true;
   };
   const next = () => {
-    if (validateStep()) setStepIndex((i) => Math.min(steps.length - 1, i + 1));
+    if (validateStep()) { setStepIndex((i) => Math.min(steps.length - 1, i + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }
   };
   const back = () => {
     setErrors({});
@@ -581,7 +580,7 @@ function App() {
               )}
             </div>
             {step.kind === "prototype" && (
-              <PrototypeViewer prototypeKey={step.prototypeKey!} />
+              <PrototypeViewer prototypeKey={step.prototypeKey!} onConceptChange={setActiveConcept} />
             )}
             <div className="questions">
               {visibleQuestions().map((q) => (
