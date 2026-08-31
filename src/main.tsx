@@ -19,6 +19,7 @@ import {
   prototypes,
   questionMap,
   questions,
+  retiredQuestionIds,
   type Question,
 } from "./shared/survey";
 import "./styles.css";
@@ -34,15 +35,10 @@ type Step = {
 };
 const draftKey = "cm1040-survey:draft:v2";
 /** Stated completion time on the welcome step. Measured against the real
- *  question set: 83 questions asked, 57 required, of which only 5 are open
- *  text — roughly 12 minutes answering just the required fields and about 20
- *  with comments. Recount before changing this. */
+ *  question set: 89 questions asked, 31 required (26 of them a single click) —
+ *  roughly 8 minutes answering only what is required and about 30 filling in
+ *  every optional comment. Recount before changing this. */
 const MINUTES = "15–20";
-const firstIds = [
-  "first_impression_visual",
-  "first_attention",
-  "first_distraction",
-];
 const participantIds = [
   "participant_consent",
   "participant_name",
@@ -367,14 +363,12 @@ function PrototypeViewer({
   prototypeKey,
   conceptKey,
   onConceptChange,
-  isConceptComplete,
   onLayoutView,
   seenMobile,
 }: {
   prototypeKey: string;
   conceptKey: string;
   onConceptChange: (key: string) => void;
-  isConceptComplete: (key: string) => boolean;
   onLayoutView: (layout: "desktop" | "mobile") => void;
   seenMobile: boolean;
 }) {
@@ -449,26 +443,18 @@ function PrototypeViewer({
         role="tablist"
         aria-label="Prototype concepts"
       >
-        {concepts.map((concept) => {
-          const done = isConceptComplete(concept.key);
-          return (
-            <button
-              key={concept.key}
-              role="tab"
-              aria-selected={conceptKey === concept.key}
-              className={[
-                conceptKey === concept.key ? "active" : "",
-                done ? "done" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => onConceptChange(concept.key)}
-            >
-              {concept.name}
-              <small>{done ? "✓ Feedback given" : "Feedback needed"}</small>
-            </button>
-          );
-        })}
+        {concepts.map((concept) => (
+          <button
+            key={concept.key}
+            role="tab"
+            aria-selected={conceptKey === concept.key}
+            className={conceptKey === concept.key ? "active" : ""}
+            onClick={() => onConceptChange(concept.key)}
+          >
+            {concept.name}
+            <small>{concept.tone}</small>
+          </button>
+        ))}
       </div>
       <figure className={`prototype-frame ${layout}`}>
         <div className="prototype-stage" ref={stageRef}>
@@ -517,7 +503,14 @@ function App() {
     if (saved) {
       try {
         const draft = JSON.parse(saved);
-        setAnswers(draft.answers ?? {});
+        const saved_answers = (draft.answers ?? {}) as Answers;
+        setAnswers(
+          Object.fromEntries(
+            Object.entries(saved_answers).filter(
+              ([id]) => !retiredQuestionIds.has(id) && questionMap.has(id),
+            ),
+          ),
+        );
         setStepIndex(Math.min(draft.stepIndex ?? 0, steps.length - 1));
         setResponseUuid(draft.responseUuid ?? crypto.randomUUID());
       } catch {
@@ -587,17 +580,12 @@ function App() {
     questions.filter(
       (q) => q.prototypeKey === `${conceptKey}-${step.key}` && isVisible(q),
     );
-  const conceptComplete = (conceptKey: string) =>
-    conceptQuestions(conceptKey).every((q) => !isMissing(q, answers[q.id]));
   const visibleQuestions = (): Question[] => {
     const list =
       step.kind === "participant"
         ? participantIds.map((id) => questionMap.get(id)!)
         : step.kind === "prototype"
           ? [
-              ...(stepIndex === 2
-                ? firstIds.map((id) => questionMap.get(id)!)
-                : []),
               ...conceptQuestions(activeConcept),
               questionMap.get(layoutQuestionId(step.key))!,
             ]
@@ -623,20 +611,7 @@ function App() {
         }
       }
     };
-    if (step.kind === "prototype") {
-      // Every demo is required, so validate all three concept tabs, not just
-      // the one currently on screen.
-      if (stepIndex === 2)
-        check(
-          firstIds.map((id) => questionMap.get(id)!),
-          activeConcept,
-        );
-      for (const concept of concepts)
-        check(conceptQuestions(concept.key), concept.key);
-      check([questionMap.get(layoutQuestionId(step.key))!], activeConcept);
-    } else {
-      check(visibleQuestions(), activeConcept);
-    }
+    check(visibleQuestions(), activeConcept);
     setErrors(next);
     if (!focusId) return true;
     if (focusConcept !== activeConcept) setActiveConcept(focusConcept);
@@ -789,7 +764,6 @@ function App() {
                 prototypeKey={step.prototypeKey!}
                 conceptKey={activeConcept}
                 onConceptChange={setActiveConcept}
-                isConceptComplete={conceptComplete}
                 onLayoutView={onLayoutView}
                 seenMobile={(layoutsOpened[step.key] ?? []).includes("mobile")}
               />
