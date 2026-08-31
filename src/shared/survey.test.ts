@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  comparisonQuestions,
+  conceptPreferenceOptions,
   concepts,
+  finalBuildQuestions,
   layoutQuestionId,
   primaryEra,
   prototypes,
@@ -22,6 +25,43 @@ describe("survey definition", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(questions.find((q) => q.id === "most_important_improvement")?.required).toBe(true);
     expect(questions.find((q) => q.id === "text_too_small_details")?.showWhen).toEqual({ questionId: "text_too_small", equals: "Yes" });
+  });
+
+  it("finishes with focused comparison and final-build questions", () => {
+    expect(comparisonQuestions.map((question) => question.id)).toEqual([
+      "concept_ranking",
+      "concept_ranking_reason",
+      "preferred_at_glance",
+      "preferred_first_time_use",
+      "preferred_visual_design",
+      "preferred_navigation",
+      "preferred_readability",
+      "preferred_responsive_design",
+    ]);
+    expect(comparisonQuestions.every((question) => question.required)).toBe(true);
+    expect(conceptPreferenceOptions).toEqual([
+      "Timeline History",
+      "Editorial Story",
+      "Visual Data",
+      "No clear preference",
+    ]);
+    expect(
+      comparisonQuestions
+        .filter((question) => question.type === "choice")
+        .every((question) => question.options === conceptPreferenceOptions),
+    ).toBe(true);
+    expect(finalBuildQuestions.map((question) => question.id)).toEqual([
+      "preferred_concept_keep",
+      "other_concepts_borrow",
+      "most_important_improvement",
+      "add_or_remove",
+      "final_comments",
+    ]);
+    expect(finalBuildQuestions.filter((question) => question.required).map((question) => question.id)).toEqual([
+      "preferred_concept_keep",
+      "other_concepts_borrow",
+      "most_important_improvement",
+    ]);
   });
 
   it("requires the shared chapter and leaves the rest optional", () => {
@@ -64,5 +104,8 @@ describe("survey definition", () => {
     }
     expect(retiredQuestionIds.has("first_impression_purpose")).toBe(true);
     expect(retiredQuestionIds.has("layouts_viewed_bandwidth")).toBe(true);
+    expect(retiredQuestionIds.has("overall_visual_design")).toBe(true);
+    expect(retiredQuestionIds.has("liked_most")).toBe(true);
+    expect(retiredQuestionIds.has("concept_ranking")).toBe(false);
   });
 });

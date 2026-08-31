@@ -50,15 +50,26 @@ async function exportResponses(url: URL, env: Env) {
 export async function handleAdminRequest(request: Request, env: Env) {
   const url = new URL(request.url);
   if (url.pathname === "/api/admin/summary") {
-    const [count, ratings] = await Promise.all([
+    const [count, ratings, firstChoices, preferences] = await Promise.all([
       env.DB.prepare(
         "SELECT COUNT(*) AS total FROM survey_responses WHERE status='submitted'",
       ).first<{ total: number }>(),
       env.DB.prepare(
         "SELECT question_id, ROUND(AVG(numeric_answer), 2) AS average, COUNT(*) AS count FROM survey_answers WHERE numeric_answer IS NOT NULL GROUP BY question_id",
       ).all(),
+      env.DB.prepare(
+        "SELECT json_extract(text_answer, '$[0]') AS option, COUNT(*) AS count FROM survey_answers WHERE question_id = 'concept_ranking' AND json_valid(text_answer) GROUP BY option ORDER BY count DESC, option",
+      ).all(),
+      env.DB.prepare(
+        "SELECT question_id, text_answer AS option, COUNT(*) AS count FROM survey_answers WHERE question_id IN ('preferred_at_glance', 'preferred_first_time_use', 'preferred_visual_design', 'preferred_navigation', 'preferred_readability', 'preferred_responsive_design') GROUP BY question_id, text_answer ORDER BY question_id, count DESC, option",
+      ).all(),
     ]);
-    return json({ total: count?.total ?? 0, ratings: ratings.results });
+    return json({
+      total: count?.total ?? 0,
+      ratings: ratings.results,
+      firstChoices: firstChoices.results,
+      preferences: preferences.results,
+    });
   }
   if (url.pathname === "/api/admin/responses") {
     const limit = Math.min(
