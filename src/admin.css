@@ -112,6 +112,8 @@ th {
 .row-button {
   background: none;
   border: 0;
+  padding: 10px 6px;
+  min-height: 44px;
   text-decoration: underline;
   text-underline-offset: 3px;
 }

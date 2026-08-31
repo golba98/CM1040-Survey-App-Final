@@ -258,6 +258,12 @@ const CHROME = {
   desktop: { bezel: 16, top: 16, chin: 38 },
   mobile: { bezel: 12, top: 32, chin: 30 },
 } as const;
+/** Below this viewport width a 1440px desktop page scales past readability, so
+ *  the preview starts on mobile instead. */
+const NARROW = 700;
+/** Floor on the preview scale: below this the prototype's text is not legible,
+ *  so the stage pans sideways rather than shrinking further. */
+const MIN_SCALE = 0.42;
 
 function isMissing(q: Question, a?: Answer) {
   if (!q.required) return false;
@@ -371,12 +377,16 @@ function PrototypeViewer({
 }) {
   const active = prototypes.find((item) => item.key === prototypeKey)!;
   const { conceptKey, eraKey } = active;
-  const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
+  const [layout, setLayout] = useState<"desktop" | "mobile">(() =>
+    typeof window !== "undefined" && window.innerWidth < NARROW
+      ? "mobile"
+      : "desktop",
+  );
   const showLayout = (next: "desktop" | "mobile") => {
     setLayout(next);
     onLayoutView(next);
   };
-  useEffect(() => onLayoutView("desktop"), [onLayoutView]);
+  useEffect(() => onLayoutView(layout), [onLayoutView, layout]);
   const [stageWidth, setStageWidth] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const page =
@@ -390,7 +400,10 @@ function PrototypeViewer({
   // The bezel sits outside the screen, so it comes off the width the prototype
   // gets to use. `+1` on each side is the bezel's own hairline border.
   const screenWidth = stageWidth - 2 * (CHROME[layout].bezel + 1);
-  const scale = screenWidth > 0 ? Math.min(1, screenWidth / design.w) : 0;
+  const scale =
+    screenWidth > 0
+      ? Math.max(MIN_SCALE, Math.min(1, screenWidth / design.w))
+      : 0;
   useLayoutEffect(() => {
     const node = stageRef.current;
     if (!node) return;
@@ -446,6 +459,7 @@ function PrototypeViewer({
         <figcaption>
           {layout === "desktop" ? "Desktop layout" : "Mobile layout"} · scroll
           inside the screen to explore the page
+          {design.w * scale > screenWidth ? ", and swipe it sideways" : null}
           {seenMobile ? null : (
             <em> · please also check the mobile layout before continuing</em>
           )}
