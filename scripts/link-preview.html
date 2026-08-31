@@ -1,0 +1,199 @@
+<!doctype html>
+<!--
+  Source for the Open Graph card at public/link-preview.png. Rendered to PNG by
+  scripts/capture-link-preview.ts — edit this, then run `npm run capture:preview`.
+  Sized 1200x630, the ratio Discord, Slack, WhatsApp, iMessage and X all expect.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      :root {
+        --bg: #0a0a0a;
+        --surface: #141414;
+        --line: #262626;
+        --line-strong: #3a3a3c;
+        --text: #ffffff;
+        --muted: #a1a1a6;
+        --muted-2: #86868b;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        color: var(--text);
+        background: var(--bg);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        font-synthesis: none;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        padding: 56px 64px 108px;
+        display: flex;
+        align-items: center;
+        gap: 36px;
+      }
+      .copy {
+        flex: 0 0 516px;
+      }
+      .card > * {
+        position: relative;
+      }
+      /* A single quiet wash, so the card reads as the same dark surface as the
+         survey itself rather than as a poster. */
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          120% 90% at 12% -10%,
+          #1d1d1f 0%,
+          #0a0a0a 62%
+        );
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 34px;
+      }
+      .brand img {
+        width: 46px;
+        height: 46px;
+      }
+      .brand span {
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font-size: 58px;
+        line-height: 1.05;
+        font-weight: 700;
+        letter-spacing: -0.028em;
+      }
+      .lead {
+        margin-top: 16px;
+        font-size: 24px;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+      }
+      .pill {
+        font-size: 17px;
+        white-space: nowrap;
+        color: var(--muted);
+        padding: 9px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+      }
+      /* The three designs under review, fanned like cards in a hand: the card
+         has to show what a participant is being asked to look at. */
+      .designs {
+        flex: 1 1 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+      }
+      .design {
+        width: 166px;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--surface);
+        box-shadow: 0 26px 52px rgb(0 0 0 / 0.6);
+      }
+      .design:nth-child(1) {
+        transform: rotate(-4deg) translateY(14px);
+      }
+      .design:nth-child(3) {
+        transform: rotate(4deg) translateY(14px);
+      }
+      .design img {
+        display: block;
+        width: 100%;
+        height: 276px;
+        object-fit: cover;
+        object-position: top center;
+      }
+      .design p {
+        padding: 11px 13px 13px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+      }
+      .foot {
+        position: absolute;
+        left: 64px;
+        bottom: 44px;
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+      .foot strong {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .foot span {
+        font-size: 19px;
+        color: var(--muted-2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="copy">
+        <div class="brand">
+          <img src="../public/connected-sa-mark.svg" alt="" />
+          <span>Connected South Africa</span>
+        </div>
+        <h1>Help shape the final website.</h1>
+        <p class="lead">
+          Three designs for the same site. Tell me which one works best.
+        </p>
+        <div class="meta">
+          <span class="pill">10–15 minutes</span>
+          <span class="pill">Anonymous</span>
+          <span class="pill">Works on your phone</span>
+        </div>
+      </div>
+
+      <div class="designs">
+        <figure class="design">
+          <img src="../public/prototypes/timeline/bandwidth/desktop.png" alt="" />
+          <p>Timeline History</p>
+        </figure>
+        <figure class="design">
+          <img src="../public/prototypes/editorial/bandwidth/desktop.png" alt="" />
+          <p>Editorial Story</p>
+        </figure>
+        <figure class="design">
+          <img src="../public/prototypes/visual-data/bandwidth/desktop.png" alt="" />
+          <p>Visual Data</p>
+        </figure>
+      </div>
+
+      <div class="foot">
+        <strong>cm1040survey.online</strong>
+        <span>CM1040 Web Development · design review</span>
+      </div>
+    </div>
+  </body>
+</html>

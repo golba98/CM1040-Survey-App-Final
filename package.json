@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "capture:prototypes": "tsx scripts/capture-prototypes.ts",
+    "capture:preview": "tsx scripts/capture-link-preview.ts",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
