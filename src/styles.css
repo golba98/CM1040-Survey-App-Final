@@ -212,12 +212,15 @@ button {
   object-position: top center;
   background: #090c10;
 }
-.prototype-live { display: block; width: 100%; height: min(62vh, 700px); border: 0; background: #fff; }
-.prototype-frame.mobile .prototype-live { width: 390px; max-width: 100%; margin: 0 auto; }
+.prototype-live { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border: 0; background: #fff; }
+.prototype-frame.mobile .prototype-live { width: min(100%, 390px); aspect-ratio: 16 / 9; margin: 0 auto; }
 .concept-tabs { display: flex; gap: 6px; margin: 0 8px 14px; }
 .concept-tabs button { flex: 1; border: 1px solid #cbd5da; border-radius: 4px; padding: 9px; background: #fff; color: #30404b; font-weight: 700; }
 .concept-tabs button.active { background: #256b73; color: #fff; border-color: #256b73; }
 .concept-tabs small { display: block; font-weight: 400; opacity: .8; }
+.era-tabs { display: flex; gap: 6px; margin: 0 8px 14px; overflow-x: auto; }
+.era-tabs button { flex: 1; min-width: 120px; border: 1px solid #cbd5da; border-radius: 4px; padding: 8px; background: #fff; color: #30404b; }
+.era-tabs button.active { border-color: #256b73; color: #256b73; font-weight: 700; }
 .prototype-frame.mobile {
   max-width: 430px;
   margin-left: auto;

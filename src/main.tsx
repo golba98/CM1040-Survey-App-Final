@@ -232,10 +232,11 @@ function currentRanking(
 function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
   const p = prototypes.find((item) => item.key === prototypeKey)!;
   const [conceptKey, setConceptKey] = useState(p.conceptKey);
+  const [eraKey, setEraKey] = useState(p.eraKey);
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
   const [open, setOpen] = useState(false);
-  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === p.eraKey)!;
-  const page = p.eraKey === "bandwidth" ? "index.html" : p.eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
+  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === eraKey)!;
+  const page = eraKey === "bandwidth" ? "index.html" : eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
   const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
   useEffect(() => {
     if (!open) return;
@@ -281,6 +282,9 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
       </div>
       <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
         {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}{concept.key !== "timeline" && <small>Optional</small>}</button>)}
+      </div>
+      <div className="era-tabs" role="tablist" aria-label="Optional era views">
+        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => setEraKey(era.key)}>{era.label} <small>Optional</small></button>)}
       </div>
       <figure className={`prototype-frame ${layout}`}>
         <iframe className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
