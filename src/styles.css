@@ -1,10 +1,29 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+/* Connected South Africa · CM1040 prototype feedback survey.
+   The survey chrome is deliberately monochrome so that the embedded prototypes
+   are the only thing on screen carrying colour. */
 :root {
-  font-family: "DM Sans", system-ui, sans-serif;
-  color: #edf1f5;
-  background: #0d1117;
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-2: #1c1c1e;
+  --line: #262626;
+  --line-strong: #3a3a3c;
+  --text: #ffffff;
+  --muted: #a1a1a6;
+  --muted-2: #86868b;
+  --danger: #ff453a;
+  --radius: 12px;
+  --radius-control: 10px;
+  --radius-small: 8px;
+  --font:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui,
+    sans-serif;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
   font-synthesis: none;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 * {
   box-sizing: border-box;
@@ -12,8 +31,18 @@
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    radial-gradient(circle at 80% -10%, #182a36 0, transparent 35%), #0d1117;
+  background: var(--bg);
+}
+/* Keep the footer on the bottom edge on short steps. */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.shell,
+.admin-shell {
+  flex: 1;
+  width: 100%;
 }
 button,
 input,
@@ -25,93 +54,92 @@ button {
   cursor: pointer;
 }
 .topbar {
-  height: 68px;
+  height: 64px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #24303b;
+  border-bottom: 1px solid var(--line);
   padding: 0 max(24px, calc((100vw - 1120px) / 2));
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(13, 17, 23, 0.92);
-  backdrop-filter: blur(12px);
+  background: var(--bg);
 }
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-family: "Space Grotesk";
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 .brand img {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
+  opacity: 0.9;
 }
 .brand em {
-  color: #f06e4b;
+  color: var(--muted);
   font-style: normal;
+  font-weight: 400;
 }
 .counter {
-  color: #9ca9b5;
-  font-size: 0.86rem;
+  color: var(--muted-2);
+  font-size: 0.82rem;
 }
 .shell {
   max-width: 900px;
   margin: 0 auto;
-  padding: 42px 24px 64px;
+  padding: 44px 24px 72px;
 }
 .progress {
-  height: 4px;
-  background: #26313b;
+  height: 2px;
+  background: var(--line);
   border-radius: 99px;
-  margin-bottom: 52px;
+  margin-bottom: 48px;
   overflow: hidden;
 }
 .progress span {
   height: 100%;
   display: block;
-  background: #f06e4b;
+  background: var(--text);
   transition: width 0.25s ease;
 }
 .eyebrow {
-  color: #f06e4b;
+  color: var(--muted-2);
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-weight: 500;
   font-size: 0.72rem;
   margin: 0 0 14px;
 }
 .welcome {
-  max-width: 720px;
-  padding: 54px 0;
+  max-width: 680px;
+  padding: 44px 0;
 }
 .welcome h1,
 .step-heading h1,
 .confirmation h1 {
-  font-family: "Space Grotesk";
-  font-size: clamp(2.3rem, 6vw, 4.5rem);
-  line-height: 1.03;
-  letter-spacing: -0.055em;
-  margin: 0 0 24px;
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 0 0 22px;
 }
 .lead {
-  color: #c8d1da;
-  font-size: 1.15rem;
-  line-height: 1.7;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.65;
 }
 .welcome p:not(.eyebrow) {
-  max-width: 690px;
-  color: #9ca9b5;
+  max-width: 660px;
+  color: var(--muted);
 }
 .step-heading {
-  margin-bottom: 34px;
+  margin-bottom: 32px;
 }
 .step-heading h1 {
-  font-size: clamp(2rem, 5vw, 3.5rem);
   margin-bottom: 12px;
 }
 .step-heading .lead {
@@ -120,30 +148,32 @@ button {
 .primary,
 .secondary {
   border: 0;
-  border-radius: 8px;
-  padding: 13px 19px;
-  font-weight: 700;
+  border-radius: var(--radius-control);
+  padding: 12px 20px;
+  font-weight: 500;
   margin-top: 16px;
 }
 .primary {
-  color: #fff;
-  background: #e65f3f;
-  box-shadow: 0 5px 16px rgba(230, 95, 63, 0.22);
+  color: #0a0a0a;
+  background: var(--text);
 }
 .primary:hover {
-  background: #f47855;
+  background: var(--muted);
 }
 .primary:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: wait;
 }
 .secondary {
   background: transparent;
-  border: 1px solid #43515d;
-  color: #d3dbe2;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+.secondary:hover:not(:disabled) {
+  border-color: var(--muted);
 }
 .secondary:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 .actions {
@@ -151,144 +181,255 @@ button {
   justify-content: space-between;
   align-items: center;
   margin-top: 36px;
-  border-top: 1px solid #26313b;
+  border-top: 1px solid var(--line);
   padding-top: 22px;
 }
 .actions .primary {
   margin-left: auto;
 }
 .prototype-viewer {
-  border: 1px solid #2a3742;
-  border-radius: 12px;
-  background: #121922;
-  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px;
   margin-bottom: 30px;
+  /* Break the preview out of the 900px reading column so each prototype can be
+     rendered at its real 1440px design width. */
+  width: min(1400px, calc(100vw - 48px));
+  margin-left: calc((100% - min(1400px, 100vw - 48px)) / 2);
+  margin-right: auto;
 }
 .viewer-header {
   display: flex;
   justify-content: space-between;
   gap: 18px;
   align-items: end;
-  padding: 10px 8px 18px;
+  padding: 6px 6px 20px;
 }
 .viewer-header h2 {
-  font-family: "Space Grotesk";
-  font-size: 1.55rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 .viewer-header p:last-child {
-  color: #9ca9b5;
-  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 5px 0 0;
 }
 .layout-toggle {
   display: flex;
-  gap: 4px;
-  background: #202b35;
-  padding: 4px;
-  border-radius: 7px;
+  gap: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  padding: 3px;
+  border-radius: var(--radius-small);
 }
 .layout-toggle button {
-  color: #aebbc6;
+  color: var(--muted);
   background: transparent;
   border: 0;
-  border-radius: 5px;
-  padding: 8px 11px;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 0.86rem;
 }
 .layout-toggle button.active {
-  color: #fff;
-  background: #e65f3f;
+  color: #0a0a0a;
+  background: var(--text);
+}
+.concept-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  padding: 3px;
+  margin: 0 0 16px;
+}
+.concept-tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.concept-tabs button:hover:not(.active) {
+  color: var(--text);
+}
+.concept-tabs button.active {
+  background: var(--text);
+  color: #0a0a0a;
+}
+.concept-tabs small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.72rem;
+  margin-top: 3px;
+  color: var(--muted-2);
+}
+.concept-tabs button.active small {
+  color: #6e6e73;
 }
 .prototype-frame {
   margin: 0;
-  background: #090c10;
-  border-radius: 7px;
-  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  /* Breathing room around the device so it reads as an object on the panel
+     rather than a screen bleeding to the edges. */
+  padding: 38px 44px 26px;
 }
-.prototype-frame img {
-  display: block;
+/* Each prototype renders at its own design viewport (1440x810 desktop, 390x844
+   mobile) and is scaled to fit inside a monitor or phone mock-up. It scrolls
+   within its screen, but its scrollbar is hidden from inside the frame so the
+   survey page keeps the only visible one. */
+.prototype-stage {
+  display: flex;
+  justify-content: center;
   width: 100%;
-  height: min(62vh, 700px);
-  object-fit: contain;
-  object-position: top center;
-  background: #090c10;
 }
-.prototype-live { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; border: 0; background: #fff; }
-.prototype-frame.mobile .prototype-live { width: min(100%, 390px); aspect-ratio: 16 / 9; margin: 0 auto; }
-.concept-tabs { display: flex; gap: 6px; margin: 0 8px 14px; }
-.concept-tabs button { flex: 1; border: 1px solid #cbd5da; border-radius: 4px; padding: 9px; background: #fff; color: #30404b; font-weight: 700; }
-.concept-tabs button.active { background: #256b73; color: #fff; border-color: #256b73; }
-.concept-tabs small { display: block; font-weight: 400; opacity: .8; }
-.era-tabs { display: flex; gap: 6px; margin: 0 8px 14px; overflow-x: auto; }
-.era-tabs button { flex: 1; min-width: 120px; border: 1px solid #cbd5da; border-radius: 4px; padding: 8px; background: #fff; color: #30404b; }
-.era-tabs button.active { border-color: #256b73; color: #256b73; font-weight: 700; }
-.prototype-frame.mobile {
-  max-width: 430px;
-  margin-left: auto;
-  margin-right: auto;
+.device {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+.device-bezel {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  padding: var(--bezel-top) var(--bezel) var(--chin);
+  max-width: 100%;
+}
+.device.desktop .device-bezel {
+  border-radius: 16px;
+}
+.device.mobile .device-bezel {
+  border-radius: 46px;
+}
+.device-screen {
+  overflow: hidden;
+  /* Neutral, not white: the prototypes default to their dark theme, and this is
+     only visible for the instant before the frame paints its own canvas. */
+  background: #0f0f0f;
+}
+.device.desktop .device-screen {
+  border-radius: 4px;
+}
+.device.mobile .device-screen {
+  border-radius: 32px;
+}
+.prototype-live {
+  display: block;
+  border: 0;
+  background: #0f0f0f;
+}
+/* Monitor: a dot on the chin, then a neck and a base. */
+.monitor-dot,
+.phone-indicator,
+.phone-island,
+.phone-button {
+  position: absolute;
+  display: block;
+}
+.monitor-dot {
+  left: 50%;
+  bottom: 12px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.monitor-neck {
+  width: 124px;
+  height: 30px;
+  background: var(--surface-2);
+  border-left: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+}
+.monitor-base {
+  width: min(420px, 34%);
+  min-width: 180px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+}
+/* Phone: dynamic island above the screen, home indicator on the chin, and
+   volume and power slivers on the outer edges. */
+.phone-island {
+  left: 50%;
+  top: 10px;
+  width: 92px;
+  height: 22px;
+  margin-left: -46px;
+  border-radius: 999px;
+  background: var(--bg);
+}
+.phone-indicator {
+  left: 50%;
+  bottom: 11px;
+  width: 110px;
+  height: 4px;
+  margin-left: -55px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.phone-button {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.phone-button.volume-up {
+  left: -3px;
+  top: 132px;
+  height: 42px;
+}
+.phone-button.volume-down {
+  left: -3px;
+  top: 186px;
+  height: 42px;
+}
+.phone-button.power {
+  right: -3px;
+  top: 158px;
+  height: 66px;
 }
 .prototype-frame figcaption {
-  display: flex;
-  justify-content: space-between;
-  color: #aebbc6;
-  font-size: 0.82rem;
-  padding: 11px 12px;
-}
-.prototype-frame figcaption button {
-  color: #f47a58;
-  background: none;
-  border: 0;
-  text-decoration: underline;
-}
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.88);
-  display: grid;
-  place-items: center;
-  padding: 30px;
-}
-.lightbox img {
-  max-width: 95vw;
-  max-height: 92vh;
-  object-fit: contain;
-}
-.lightbox-close {
-  position: fixed;
-  top: 18px;
-  right: 24px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid #657380;
-  color: #fff;
-  background: #202a33;
-  border-radius: 50%;
-  font-size: 1.6rem;
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  padding: 26px 14px 0;
+  text-align: center;
 }
 .questions {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 .question {
-  border: 1px solid #2a3742;
-  border-radius: 10px;
-  padding: 20px;
-  background: #121922;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: var(--surface);
   min-width: 0;
 }
 .question legend {
   max-width: 100%;
-  color: #f1f4f6;
-  font-weight: 700;
+  color: var(--text);
+  font-weight: 500;
   font-size: 1rem;
+  letter-spacing: -0.01em;
   padding: 0 4px;
 }
 .required {
-  color: #f47756;
+  color: var(--danger);
 }
 .optional {
   display: inline-block;
-  color: #81909c;
+  color: var(--muted-2);
   font-weight: 400;
   font-size: 0.75rem;
   margin-left: 8px;
@@ -296,15 +437,15 @@ button {
 .rating-options {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 7px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 18px;
 }
 .rating-option {
-  color: #9ca9b5;
+  color: var(--muted-2);
   text-align: center;
   font-size: 0.72rem;
   display: grid;
-  gap: 6px;
+  gap: 7px;
   cursor: pointer;
 }
 .rating-option input {
@@ -312,55 +453,90 @@ button {
   opacity: 0;
 }
 .rating-number {
-  border: 1px solid #44515d;
-  border-radius: 7px;
-  padding: 9px 0;
-  color: #dae1e7;
-  font-size: 1rem;
-  font-weight: 700;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  padding: 10px 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.rating-option:hover .rating-number {
+  border-color: var(--muted);
 }
 .rating-option input:checked + .rating-number {
-  border-color: #f06e4b;
-  background: #f06e4b;
-  color: #fff;
+  border-color: var(--text);
+  background: var(--text);
+  color: #0a0a0a;
 }
 .rating-option input:focus-visible + .rating-number,
 .choice-options input:focus-visible + span,
+a:focus-visible,
+input:focus-visible,
 button:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid #f6b5a3;
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 .choice-options {
   display: grid;
-  gap: 9px;
-  margin-top: 15px;
+  gap: 8px;
+  margin-top: 16px;
 }
 .choice-options label {
-  color: #c7d0d8;
-  border: 1px solid #374550;
-  border-radius: 7px;
-  padding: 10px 12px;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  padding: 11px 13px;
   cursor: pointer;
 }
+.choice-options label:hover {
+  border-color: var(--muted);
+}
 .choice-options label:has(input:checked) {
-  border-color: #f06e4b;
-  background: #2a1e1c;
+  border-color: var(--text);
+  background: var(--surface-2);
+  color: var(--text);
 }
 .choice-options input {
-  accent-color: #f06e4b;
+  accent-color: var(--text);
+}
+.consent-note {
+  color: var(--muted);
+  font-size: 0.92rem;
+  border-left: 2px solid var(--line-strong);
+  padding-left: 14px;
+  margin: 26px 0 0;
+  max-width: 640px;
+}
+.question.consent .choice-options label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.prototype-frame figcaption em {
+  color: var(--muted);
+  font-style: normal;
+}
+.welcome h1:focus-visible,
+.step-heading h1:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 6px;
 }
 .question textarea,
 .question select {
   width: 100%;
   margin-top: 14px;
-  color: #ecf0f3;
-  background: #0c1116;
-  border: 1px solid #43515d;
-  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
   padding: 11px 12px;
   resize: vertical;
+}
+.question textarea:focus,
+.question select:focus {
+  border-color: var(--muted);
 }
 .ranking-options {
   display: grid;
@@ -368,7 +544,7 @@ select:focus-visible {
   margin-top: 14px;
 }
 .ranking-options label {
-  color: #b9c4cd;
+  color: var(--muted);
 }
 .ranking-options select {
   display: inline-block;
@@ -377,13 +553,13 @@ select:focus-visible {
   margin: 0 0 0 6px;
 }
 .has-error {
-  border-color: #e36b62;
+  border-color: var(--danger);
 }
 .error-message,
 .api-error {
-  color: #ffaea5;
+  color: var(--danger);
   font-size: 0.84rem;
-  margin: 9px 0 0;
+  margin: 10px 0 0;
 }
 .confirmation {
   min-height: 70vh;
@@ -391,36 +567,38 @@ select:focus-visible {
   align-content: center;
 }
 .confirmation-mark {
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
-  background: #398f68;
-  font-size: 1.7rem;
-  margin-bottom: 20px;
-}
-.confirmation h1 {
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  color: #0a0a0a;
+  background: var(--text);
+  font-size: 1.4rem;
+  margin-bottom: 22px;
 }
 .confirmation p:not(.eyebrow) {
-  color: #b7c3cc;
-  font-size: 1.1rem;
+  color: var(--muted);
+  font-size: 1.05rem;
 }
 .confirmation code {
-  color: #f6a187;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 0.9em;
 }
 .footer {
-  color: #6f7d88;
-  border-top: 1px solid #25313b;
-  padding: 20px 24px;
+  color: var(--muted-2);
+  border-top: 1px solid var(--line);
+  padding: 22px 24px;
   text-align: center;
   font-size: 0.78rem;
 }
 @media (max-width: 620px) {
   .topbar {
-    height: 58px;
+    height: 56px;
     padding: 0 16px;
   }
   .brand {
@@ -430,10 +608,10 @@ select:focus-visible {
     font-size: 0.72rem;
   }
   .shell {
-    padding: 28px 15px 44px;
+    padding: 28px 15px 48px;
   }
   .progress {
-    margin-bottom: 34px;
+    margin-bottom: 32px;
   }
   .welcome {
     padding: 28px 0;
@@ -450,21 +628,50 @@ select:focus-visible {
   }
   .prototype-viewer {
     padding: 10px;
+    width: auto;
+    margin-left: 0;
   }
-  .prototype-frame img {
-    height: 58vh;
+  .prototype-frame {
+    padding: 18px 12px 16px;
+  }
+  .monitor-neck {
+    width: 76px;
+    height: 18px;
+  }
+  .monitor-base {
+    min-width: 120px;
+    height: 7px;
+  }
+  .device.desktop .device-bezel {
+    border-radius: 10px;
+  }
+  .device.mobile .device-bezel {
+    border-radius: 34px;
+  }
+  .device.mobile .device-screen {
+    border-radius: 22px;
+  }
+  .monitor-neck {
+    height: 18px;
+  }
+  .concept-tabs button {
+    padding: 8px 4px;
+    font-size: 0.78rem;
+  }
+  .concept-tabs small {
+    font-size: 0.62rem;
   }
   .question {
     padding: 16px;
   }
   .rating-options {
-    gap: 3px;
+    gap: 4px;
   }
   .rating-option {
-    font-size: 0.61rem;
+    font-size: 0.6rem;
   }
   .rating-number {
-    padding: 8px 0;
+    padding: 9px 0;
   }
   .actions {
     margin-top: 25px;

@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createRoot } from "react-dom/client";
 import {
   concepts,
+  consentStatement,
   crossConceptQuestions,
   eras,
   globalQuestions,
+  layoutQuestionId,
+  layoutTrackingId,
   prototypes,
   questionMap,
   questions,
@@ -12,7 +23,6 @@ import {
 } from "./shared/survey";
 import "./styles.css";
 import "./admin.css";
-import "./theme.css";
 
 type Answer = { numericAnswer?: number; textAnswer?: string };
 type Answers = Record<string, Answer>;
@@ -22,14 +32,19 @@ type Step = {
   kind: "welcome" | "participant" | "prototype" | "cross" | "final";
   prototypeKey?: string;
 };
-const draftKey = "cm1040-survey:draft:v1";
+const draftKey = "cm1040-survey:draft:v2";
+/** Stated completion time on the welcome step. Measured against the real
+ *  question set: 83 questions asked, 57 required, of which only 5 are open
+ *  text — roughly 12 minutes answering just the required fields and about 20
+ *  with comments. Recount before changing this. */
+const MINUTES = "15–20";
 const firstIds = [
   "first_impression_visual",
-  "first_impression_purpose",
   "first_attention",
   "first_distraction",
 ];
 const participantIds = [
+  "participant_consent",
   "participant_name",
   "participant_device",
   "website_experience",
@@ -44,9 +59,7 @@ const finalIds = [
   "overall_mobile_design",
   "liked_most",
   "liked_least",
-  "overall_confusing",
-  "remove_from_site",
-  "add_to_site",
+  "add_or_remove",
   "most_important_improvement",
   "final_comments",
 ];
@@ -79,19 +92,9 @@ function RadioScale({
   setAnswer: (a: Answer) => void;
 }) {
   const labels =
-    q.id.includes("clarity") ||
-    q.id.includes("appeal") ||
-    q.id.includes("ease") ||
-    q.id.includes("readability") ||
-    q.id.includes("space") ||
-    q.id.includes("navigation") ||
-    q.id.includes("mobile") ||
-    q.id.includes("button") ||
-    q.id.includes("overall") ||
-    q.id.includes("clickable") ||
-    q.id === "layout_glance"
-      ? ["Very poor", "Poor", "Average", "Good", "Excellent"]
-      : ["Very unclear", "Unclear", "Average", "Clear", "Very clear"];
+    q.scale === "clarity"
+      ? ["Very unclear", "Unclear", "Average", "Clear", "Very clear"]
+      : ["Very poor", "Poor", "Average", "Good", "Excellent"];
   return (
     <div className="rating-options" role="radiogroup" aria-label={q.text}>
       {[1, 2, 3, 4, 5].map((n) => (
@@ -123,10 +126,12 @@ function QuestionField({
   error?: string;
 }) {
   const id = `field-${q.id}`;
+  const inputId = `${id}-input`;
+  const isConsent = q.type === "choice" && q.options?.length === 1;
   return (
     <fieldset
       id={id}
-      className={`question ${error ? "has-error" : ""}`}
+      className={`question ${isConsent ? "consent" : ""} ${error ? "has-error" : ""}`}
       aria-describedby={error ? `${id}-error` : undefined}
     >
       <legend>
@@ -143,7 +148,21 @@ function QuestionField({
       {q.type === "rating" && (
         <RadioScale q={q} answer={answer} setAnswer={setAnswer} />
       )}
-      {q.type === "choice" && (
+      {isConsent && (
+        <div className="choice-options">
+          <label>
+            <input
+              type="checkbox"
+              checked={answer?.textAnswer === q.options![0]}
+              onChange={(e) =>
+                setAnswer({ textAnswer: e.target.checked ? q.options![0] : "" })
+              }
+            />{" "}
+            <span>{q.options![0]}</span>
+          </label>
+        </div>
+      )}
+      {q.type === "choice" && !isConsent && (
         <div className="choice-options">
           {q.options?.map((option) => (
             <label key={option}>
@@ -196,7 +215,7 @@ function QuestionField({
       )}
       {q.type === "text" && (
         <textarea
-          id={id}
+          id={inputId}
           rows={
             q.id.includes("comment") ||
             q.id.includes("change") ||
@@ -229,36 +248,181 @@ function currentRanking(
   return values.includes(item) && values[index] !== item;
 }
 
-function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: string; onConceptChange: (key: string) => void }) {
-  const p = prototypes.find((item) => item.key === prototypeKey)!;
-  const [conceptKey, setConceptKey] = useState(p.conceptKey);
-  const [eraKey, setEraKey] = useState(p.eraKey);
+// Screen viewport of each layout. 1440x810 is exactly 16:9 and stays above the
+// prototypes' 860px breakpoint, so their era tabs remain in the header; 390x844
+// is the phone the reference captures were taken at.
+const DESIGN = {
+  desktop: { w: 1440, h: 810 },
+  mobile: { w: 390, h: 844 },
+} as const;
+// Device chrome insets. Declared once here and handed to CSS as custom
+// properties so the scale maths and the stylesheet cannot drift apart.
+const CHROME = {
+  desktop: { bezel: 16, top: 16, chin: 38 },
+  mobile: { bezel: 12, top: 32, chin: 30 },
+} as const;
+
+function isMissing(q: Question, a?: Answer) {
+  if (!q.required) return false;
+  if (!a) return true;
+  if (q.type === "text") return !a.textAnswer?.trim();
+  if (q.type === "rating") return !a.numericAnswer;
+  if (q.type === "choice") return !a.textAnswer;
+  if (q.type === "ranking")
+    return (
+      !a.textAnswer || (JSON.parse(a.textAnswer) as string[]).some((v) => !v)
+    );
+  return false;
+}
+
+/**
+ * The prototypes are independent, same-origin sites with their own breakpoints,
+ * so each is rendered at its real design viewport and scaled to fit inside a
+ * monitor or phone mock-up. The prototype scrolls within its screen, but its
+ * scrollbar is hidden so the survey page keeps the only visible one.
+ */
+function DeviceFrame({
+  src,
+  title,
+  layout,
+  scale,
+}: {
+  src: string;
+  title: string;
+  layout: "desktop" | "mobile";
+  scale: number;
+}) {
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const design = DESIGN[layout];
+  const chrome = CHROME[layout];
+  const onLoad = () => {
+    // Presentational only: nothing about the design under review changes, the
+    // scrollbar is just hidden so the preview shows one bar instead of two.
+    // Era links inside the frame load a new document, so this re-runs.
+    const doc = frameRef.current?.contentDocument;
+    if (!doc?.head || doc.getElementById("cm1040-preview-style")) return;
+    const style = doc.createElement("style");
+    style.id = "cm1040-preview-style";
+    style.textContent =
+      "html{scrollbar-width:none;-ms-overflow-style:none}" +
+      "html::-webkit-scrollbar,body::-webkit-scrollbar{width:0;height:0;display:none}";
+    doc.head.appendChild(style);
+  };
+  return (
+    <div className={`device ${layout}`}>
+      <div
+        className="device-bezel"
+        style={
+          {
+            "--bezel": `${chrome.bezel}px`,
+            "--bezel-top": `${chrome.top}px`,
+            "--chin": `${chrome.chin}px`,
+          } as CSSProperties
+        }
+      >
+        {layout === "mobile" ? (
+          <span className="phone-island" aria-hidden="true" />
+        ) : null}
+        <div
+          className="device-screen"
+          style={{ width: design.w * scale, height: design.h * scale }}
+        >
+          <iframe
+            className="prototype-live"
+            ref={frameRef}
+            title={title}
+            src={src}
+            onLoad={onLoad}
+            style={{
+              width: design.w,
+              height: design.h,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          />
+        </div>
+        <span
+          className={layout === "mobile" ? "phone-indicator" : "monitor-dot"}
+          aria-hidden="true"
+        />
+        {layout === "mobile" ? (
+          <>
+            <span className="phone-button volume-up" aria-hidden="true" />
+            <span className="phone-button volume-down" aria-hidden="true" />
+            <span className="phone-button power" aria-hidden="true" />
+          </>
+        ) : null}
+      </div>
+      {layout === "desktop" ? (
+        <>
+          <span className="monitor-neck" aria-hidden="true" />
+          <span className="monitor-base" aria-hidden="true" />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function PrototypeViewer({
+  prototypeKey,
+  conceptKey,
+  onConceptChange,
+  isConceptComplete,
+  onLayoutView,
+  seenMobile,
+}: {
+  prototypeKey: string;
+  conceptKey: string;
+  onConceptChange: (key: string) => void;
+  isConceptComplete: (key: string) => boolean;
+  onLayoutView: (layout: "desktop" | "mobile") => void;
+  seenMobile: boolean;
+}) {
+  const eraKey = prototypes.find((item) => item.key === prototypeKey)!.eraKey;
   const [layout, setLayout] = useState<"desktop" | "mobile">("desktop");
-  const [open, setOpen] = useState(false);
-  const active = prototypes.find((item) => item.conceptKey === conceptKey && item.eraKey === eraKey)!;
-  const page = eraKey === "bandwidth" ? "index.html" : eraKey === "local" ? "mobile-local.html" : "digital-divide.html";
+  const showLayout = (next: "desktop" | "mobile") => {
+    setLayout(next);
+    onLayoutView(next);
+  };
+  useEffect(() => onLayoutView("desktop"), [onLayoutView]);
+  const [stageWidth, setStageWidth] = useState(0);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const active = prototypes.find(
+    (item) => item.conceptKey === conceptKey && item.eraKey === eraKey,
+  )!;
+  const page =
+    eraKey === "bandwidth"
+      ? "index.html"
+      : eraKey === "local"
+        ? "mobile-local.html"
+        : "digital-divide.html";
   const prototypeUrl = `/live-prototypes/${conceptKey}/${page}`;
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-      if (event.key === "ArrowLeft") setLayout("desktop");
-      if (event.key === "ArrowRight") setLayout("mobile");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  const design = DESIGN[layout];
+  // The bezel sits outside the screen, so it comes off the width the prototype
+  // gets to use. `+1` on each side is the bezel's own hairline border.
+  const screenWidth = stageWidth - 2 * (CHROME[layout].bezel + 1);
+  const scale = screenWidth > 0 ? Math.min(1, screenWidth / design.w) : 0;
+  useLayoutEffect(() => {
+    const node = stageRef.current;
+    if (!node) return;
+    setStageWidth(node.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) =>
+      setStageWidth(entries[0].contentRect.width),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [layout]);
   return (
     <section
       className="prototype-viewer"
-      aria-label={`${p.conceptName}, ${p.eraLabel} prototype`}
+      aria-label={`${active.conceptName}, ${active.eraLabel} prototype`}
     >
       <div className="viewer-header">
         <div>
           <p className="eyebrow">Prototype screen</p>
-          <h2>{p.conceptName}</h2>
+          <h2>{active.conceptName}</h2>
           <p>
-            {p.eraLabel} · {p.title}
+            {active.eraLabel} · {active.title}
           </p>
         </div>
         <div
@@ -268,87 +432,64 @@ function PrototypeViewer({ prototypeKey, onConceptChange }: { prototypeKey: stri
         >
           <button
             className={layout === "desktop" ? "active" : ""}
-            onClick={() => setLayout("desktop")}
+            onClick={() => showLayout("desktop")}
           >
             Desktop
           </button>
           <button
             className={layout === "mobile" ? "active" : ""}
-            onClick={() => setLayout("mobile")}
+            onClick={() => showLayout("mobile")}
           >
             Mobile
           </button>
         </div>
       </div>
-      <div className="concept-tabs" role="tablist" aria-label="Prototype concepts">
-        {concepts.map((concept) => <button key={concept.key} role="tab" aria-selected={conceptKey === concept.key} className={conceptKey === concept.key ? "active" : ""} onClick={() => { setConceptKey(concept.key); onConceptChange(concept.key); }}>{concept.name}</button>)}
-      </div>
-      <div className="era-tabs" role="tablist" aria-label="Optional era views">
-        {eras.map((era) => <button key={era.key} role="tab" aria-selected={eraKey === era.key} className={eraKey === era.key ? "active" : ""} onClick={() => setEraKey(era.key)}>{era.label} <small>Optional</small></button>)}
+      <div
+        className="concept-tabs"
+        role="tablist"
+        aria-label="Prototype concepts"
+      >
+        {concepts.map((concept) => {
+          const done = isConceptComplete(concept.key);
+          return (
+            <button
+              key={concept.key}
+              role="tab"
+              aria-selected={conceptKey === concept.key}
+              className={[
+                conceptKey === concept.key ? "active" : "",
+                done ? "done" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => onConceptChange(concept.key)}
+            >
+              {concept.name}
+              <small>{done ? "✓ Feedback given" : "Feedback needed"}</small>
+            </button>
+          );
+        })}
       </div>
       <figure className={`prototype-frame ${layout}`}>
-        <iframe className="prototype-live" title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`} src={prototypeUrl} />
+        <div className="prototype-stage" ref={stageRef}>
+          {scale > 0 && (
+            <DeviceFrame
+              key={layout}
+              src={prototypeUrl}
+              title={`${active.conceptName} ${active.eraLabel} ${layout} prototype`}
+              layout={layout}
+              scale={scale}
+            />
+          )}
+        </div>
         <figcaption>
-          <button
-            onClick={() => setLayout("desktop")}
-            disabled={layout === "desktop"}
-            aria-label="Previous layout"
-          >
-            ← Previous
-          </button>
-          <span>
-            {layout === "desktop" ? "Desktop layout" : "Mobile layout"}
-          </span>
-          <span className="caption-actions">
-            <button onClick={() => setOpen(true)}>Enlarge image</button>
-            <button
-              onClick={() => setLayout("mobile")}
-              disabled={layout === "mobile"}
-              aria-label="Next layout"
-            >
-              Next →
-            </button>
-          </span>
+          {layout === "desktop" ? "Desktop layout" : "Mobile layout"} · scroll
+          inside the screen to explore the page
+          {seenMobile ? null : (
+            <em> · please also check the mobile layout before continuing</em>
+          )}
         </figcaption>
       </figure>
-      {open && (
-        <div
-          className="lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Enlarged prototype image"
-          onClick={() => setOpen(false)}
-        >
-          <button
-            className="lightbox-close"
-            onClick={() => setOpen(false)}
-            aria-label="Close enlarged image"
-          >
-            ×
-          </button>
-          <button
-            className="lightbox-nav left"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("desktop");
-            }}
-            aria-label="Previous layout"
-          >
-            ←
-          </button>
-          <iframe className="prototype-live enlarged" title={`${active.conceptName} enlarged`} src={prototypeUrl} onClick={(e) => e.stopPropagation()} />
-          <button
-            className="lightbox-nav right"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLayout("mobile");
-            }}
-            aria-label="Next layout"
-          >
-            →
-          </button>
-        </div>
-      )}
     </section>
   );
 }
@@ -364,6 +505,13 @@ function App() {
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
   const [activeConcept, setActiveConcept] = useState("timeline");
+  const [pendingFocus, setPendingFocus] = useState("");
+  // Which layouts the participant actually opened, per era step. Recorded
+  // alongside their own answer so the two can be compared.
+  const [layoutsOpened, setLayoutsOpened] = useState<Record<string, string[]>>(
+    {},
+  );
+  const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const saved = localStorage.getItem(draftKey);
     if (saved) {
@@ -395,7 +543,35 @@ function App() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [answers, submitted]);
   const step = steps[stepIndex];
-  useEffect(() => { setActiveConcept("timeline"); }, [stepIndex]);
+  useEffect(() => {
+    setActiveConcept("timeline");
+    headingRef.current?.focus();
+  }, [stepIndex]);
+  const recordLayout = useCallback(
+    (eraKey: string, layout: "desktop" | "mobile") =>
+      setLayoutsOpened((previous) => {
+        const seen = previous[eraKey] ?? [];
+        if (seen.includes(layout)) return previous;
+        const next = [...seen, layout];
+        setAnswers((current) => ({
+          ...current,
+          [layoutTrackingId(eraKey)]: { textAnswer: next.join(", ") },
+        }));
+        return { ...previous, [eraKey]: next };
+      }),
+    [],
+  );
+  const onLayoutView = useCallback(
+    (layout: "desktop" | "mobile") => recordLayout(step.key, layout),
+    [recordLayout, step.key],
+  );
+  useEffect(() => {
+    if (!pendingFocus) return;
+    document
+      .getElementById(`field-${pendingFocus}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setPendingFocus("");
+  }, [pendingFocus]);
   const setAnswer = (id: string, answer: Answer) => {
     setAnswers((previous) => ({ ...previous, [id]: answer }));
     setErrors((previous) => {
@@ -404,6 +580,15 @@ function App() {
       return next;
     });
   };
+  const isVisible = (q: Question) =>
+    !q.showWhen ||
+    answers[q.showWhen.questionId]?.textAnswer === q.showWhen.equals;
+  const conceptQuestions = (conceptKey: string): Question[] =>
+    questions.filter(
+      (q) => q.prototypeKey === `${conceptKey}-${step.key}` && isVisible(q),
+    );
+  const conceptComplete = (conceptKey: string) =>
+    conceptQuestions(conceptKey).every((q) => !isMissing(q, answers[q.id]));
   const visibleQuestions = (): Question[] => {
     const list =
       step.kind === "participant"
@@ -413,48 +598,50 @@ function App() {
               ...(stepIndex === 2
                 ? firstIds.map((id) => questionMap.get(id)!)
                 : []),
-              ...questions.filter((q) => q.prototypeKey === `${activeConcept}-${step.prototypeKey!.replace("timeline-", "")}`),
+              ...conceptQuestions(activeConcept),
+              questionMap.get(layoutQuestionId(step.key))!,
             ]
           : step.kind === "cross"
             ? crossIds.map((id) => questionMap.get(id)!)
             : step.kind === "final"
               ? finalIds.map((id) => questionMap.get(id)!)
               : [];
-    return list.filter(
-      (q) =>
-        !q.showWhen ||
-        answers[q.showWhen.questionId]?.textAnswer === q.showWhen.equals,
-    );
+    return list.filter(isVisible);
   };
   const validateStep = () => {
     const next: Record<string, string> = {};
-    for (const q of visibleQuestions()) {
-      if (
-        q.showWhen &&
-        answers[q.showWhen.questionId]?.textAnswer !== q.showWhen.equals
-      )
-        continue;
-      const a = answers[q.id];
-      const missing =
-        q.required &&
-        (!a ||
-          (q.type === "text" && !a.textAnswer?.trim()) ||
-          (q.type === "rating" && !a.numericAnswer) ||
-          (q.type === "choice" && !a.textAnswer) ||
-          (q.type === "ranking" &&
-            (!a.textAnswer ||
-              (JSON.parse(a.textAnswer) as string[]).some((v) => !v))));
-      if (missing)
+    let focusId = "";
+    let focusConcept = activeConcept;
+    const check = (list: Question[], conceptKey: string) => {
+      for (const q of list) {
+        if (!isVisible(q)) continue;
+        if (!isMissing(q, answers[q.id])) continue;
         next[q.id] = "Please answer this question before continuing.";
+        if (!focusId) {
+          focusId = q.id;
+          focusConcept = conceptKey;
+        }
+      }
+    };
+    if (step.kind === "prototype") {
+      // Every demo is required, so validate all three concept tabs, not just
+      // the one currently on screen.
+      if (stepIndex === 2)
+        check(
+          firstIds.map((id) => questionMap.get(id)!),
+          activeConcept,
+        );
+      for (const concept of concepts)
+        check(conceptQuestions(concept.key), concept.key);
+      check([questionMap.get(layoutQuestionId(step.key))!], activeConcept);
+    } else {
+      check(visibleQuestions(), activeConcept);
     }
     setErrors(next);
-    if (Object.keys(next).length) {
-      document
-        .getElementById(`field-${Object.keys(next)[0]}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return false;
-    }
-    return true;
+    if (!focusId) return true;
+    if (focusConcept !== activeConcept) setActiveConcept(focusConcept);
+    setPendingFocus(focusId);
+    return false;
   };
   const next = () => {
     if (validateStep()) { setStepIndex((i) => Math.min(steps.length - 1, i + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -539,7 +726,15 @@ function App() {
         </span>
       </header>
       <main className="shell">
-        <div className="progress">
+        <div
+          className="progress"
+          role="progressbar"
+          aria-label="Survey progress"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={stepIndex + 1}
+          aria-valuetext={`Step ${stepIndex + 1} of ${steps.length}`}
+        >
           <span
             style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
           />
@@ -547,7 +742,9 @@ function App() {
         {step.kind === "welcome" ? (
           <section className="welcome">
             <p className="eyebrow">Connected South Africa · design review</p>
-            <h1>Help shape the final website.</h1>
+            <h1 ref={headingRef} tabIndex={-1}>
+              Help shape the final website.
+            </h1>
             <p className="lead">
               I am testing prototype designs for a website being developed as
               part of my Web Development coursework. Please look through the
@@ -557,8 +754,9 @@ function App() {
             <p>
               There are no right or wrong answers. Your feedback will be used to
               improve the designs before the final website is developed. This
-              takes around 12–15 minutes.
+              takes around {MINUTES} minutes.
             </p>
+            <p className="consent-note">{consentStatement}</p>
             <button className="primary" onClick={next}>
               Begin survey <span>→</span>
             </button>
@@ -569,7 +767,9 @@ function App() {
               <p className="eyebrow">
                 {step.kind === "prototype" ? "Screen review" : step.title}
               </p>
-              <h1>{step.title}</h1>
+              <h1 ref={headingRef} tabIndex={-1}>
+                {step.title}
+              </h1>
               {step.kind === "cross" && (
                 <p className="lead">
                   Now compare the designs as a whole and think about how a
@@ -584,7 +784,15 @@ function App() {
               )}
             </div>
             {step.kind === "prototype" && (
-              <PrototypeViewer prototypeKey={step.prototypeKey!} onConceptChange={setActiveConcept} />
+              <PrototypeViewer
+                key={step.prototypeKey}
+                prototypeKey={step.prototypeKey!}
+                conceptKey={activeConcept}
+                onConceptChange={setActiveConcept}
+                isConceptComplete={conceptComplete}
+                onLayoutView={onLayoutView}
+                seenMobile={(layoutsOpened[step.key] ?? []).includes("mobile")}
+              />
             )}
             <div className="questions">
               {visibleQuestions().map((q) => (
